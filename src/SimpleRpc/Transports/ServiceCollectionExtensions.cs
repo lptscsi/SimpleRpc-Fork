@@ -13,12 +13,12 @@ namespace SimpleRpc.Transports
     {
         public static IServiceCollection AddSimpleRpcClient(
             this IServiceCollection services,
-            string ClientName,
+            string clientName,
             HttpClientTransportOptions options)
         {
-            if (string.IsNullOrEmpty(ClientName))
+            if (string.IsNullOrEmpty(clientName))
             {
-                throw new ArgumentNullException(nameof(ClientName));
+                throw new ArgumentNullException(nameof(clientName));
             }
 
             if (options == null)
@@ -26,7 +26,7 @@ namespace SimpleRpc.Transports
                 throw new ArgumentNullException(nameof(options));
             }
 
-            services.AddHttpClient(ClientName, (client) => {
+            services.AddHttpClient(clientName, (client) => {
                 var url = new Uri(options.Url);
                 client.BaseAddress = url;
 
@@ -48,8 +48,8 @@ namespace SimpleRpc.Transports
                 var serializer = SerializationHelper.GetByName(options.Serializer);
                 return new ClientConfiguration()
                 {
-                    Name = ClientName,
-                    Transport = new HttpClientTransport(ClientName, serializer, sp.GetRequiredService<IHttpClientFactory>())
+                    Name = clientName,
+                    Transport = new HttpClientTransport(clientName, serializer, sp.GetRequiredService<IHttpClientFactory>())
                 };
             });
 
