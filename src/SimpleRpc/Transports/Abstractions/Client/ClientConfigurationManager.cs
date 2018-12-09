@@ -19,7 +19,7 @@ namespace SimpleRpc.Transports.Abstractions.Client
             {
                 if (!_cache.TryAdd(clientConfiguration.Name, clientConfiguration.Transport))
                 {
-                    throw new Exception($"Cant added client transport named {clientConfiguration.Name}, maybe he's already registered");
+                    throw new Exception($"Cant added client transport named {clientConfiguration.Name}, maybe it's already registered");
                 }
             }
         }

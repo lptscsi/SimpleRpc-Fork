@@ -19,70 +19,34 @@ namespace SimpleRpc.Sample.Client
 
             sc.AddSimpleRpcClient("sample", new HttpClientTransportOptions
             {
-               Url = "http://127.0.0.1:5000/rpc",
-              // Serializer = "wire"
+               Url = "http://127.0.0.1:5000/rpc"
             });
 
             sc.AddSimpleRpcProxy<IFooService>("sample");
-            // or
-            //sc.AddSimpleRpcProxy(typeof(IFooService), "sample");
+            sc.AddTransient<Client>();
 
-            var pr = sc.BuildServiceProvider();
-
-            var service = pr.GetService<IFooService>();
-
-
-            service.Plus(1, 5);
-
-            Console.WriteLine("Calling Concat Method: " + service.Concat("Foo", "Bar"));
-
-            await service.WriteFooAsync("TaskFoo", "TaskBar");
-
-            #region Test ConcatAsync
-            var startTime = DateTime.Now;
-            int iterations = 5000;
-            Console.WriteLine($"Start ConcatAsync Iterations: {iterations}");
-
-            for (int i = 0; i < iterations; ++i)
+            using (var pr = sc.BuildServiceProvider())
             {
-                string res1 = await service.ConcatAsync("sadasd", "asdsd");
-            }
+                Func<Task> action = async () =>
+                {
+                    using (var scope = pr.CreateScope())
+                    {
+                        var provider = scope.ServiceProvider;
+                        var client = provider.GetService<Client>();
+                        await client.TestMain();
+                        await client.TestConcatAsync();
+                        await client.TestReturnGenericType();
+                        await client.TestExceptions();
+                    }
+                };
 
-            var diff = DateTime.Now - startTime;
-            Console.WriteLine($"End ConcatAsync: Time {diff}, Performance: {(iterations / diff.TotalMilliseconds) * 1000} msg/sec");
-            #endregion
+                List<Task> tasks = new List<Task>();
+                for (int i = 0; i < 6; ++i)
+                {
+                    tasks.Add(action());
+                }
 
-            #region Test ReturnGenericType
-            List<string> list = new List<string>();
-            for(int i = 0; i < 10000; ++i)
-            {
-                list.Add($"Item {i} RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR VVVVVVVVVVVVVVVVVVVVVVVV ФФФФФФФФФФФФФФФФФФФФФФФФФФФФФ TTTTTTTTTTTTTTTTTTTTT");
-            }
-
-            iterations = 100;
-            var res2 = await service.ReturnGenericType<string>(list);
-
-            Console.WriteLine($"ReturnGenericType Count: {res2?.Count}");
-
-            startTime = DateTime.Now;
-            Console.WriteLine($"Start ReturnGenericType Iterations: {iterations}");
-
-            for (int i = 0; i < iterations; ++i)
-            {
-                await service.ReturnGenericType<string>(list);
-            }
-
-            diff = DateTime.Now - startTime;
-            Console.WriteLine($"End ReturnGenericType: Time {diff}, Performance: {(iterations / diff.TotalMilliseconds) * 1000} msg/sec");
-            #endregion
-
-            try
-            {
-                await service.ThrowException<object>();
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
+                await Task.WhenAll(tasks);
             }
 
             Console.ReadLine();
