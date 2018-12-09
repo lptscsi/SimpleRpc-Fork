@@ -53,7 +53,7 @@ namespace SimpleRpc.Transports.Http.Server
                 {
                     try
                     {
-                        rpcRequest = (RpcRequest)serializer.Deserialize(context.Request.Body, typeof(RpcRequest));
+                        rpcRequest = await serializer.Deserialize<RpcRequest>(context.Request.Body);
                     }
                     catch (Exception e)
                     {
@@ -94,14 +94,13 @@ namespace SimpleRpc.Transports.Http.Server
                 }
 
                 context.Response.ContentType = serializer.ContentType;
-                serializer.Serialize(
+                await serializer.Serialize(
                     new RpcResponse
                     {
                         Result = result,
                         Error = rpcError
                     },
-                    context.Response.Body,
-                    typeof(RpcResponse));
+                    context.Response.Body);
             }
         }
     }

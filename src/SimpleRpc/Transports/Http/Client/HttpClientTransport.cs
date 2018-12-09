@@ -44,7 +44,7 @@ namespace SimpleRpc.Transports.Http.Client
                     var resultSerializer = SerializationHelper.GetByContentType(httpResponseMessage.Content.Headers.ContentType.MediaType);
                     var stream = await httpResponseMessage.Content.ReadAsStreamAsync().ConfigureAwait(false);
 
-                    var result = (RpcResponse)resultSerializer.Deserialize(stream, typeof(RpcResponse));
+                    var result = await resultSerializer.Deserialize<RpcResponse>(stream);
 
                     if (result.Error != null)
                     {
@@ -69,11 +69,9 @@ namespace SimpleRpc.Transports.Http.Client
             Headers.ContentType = new MediaTypeHeaderValue(_serializer.ContentType);
         }
 
-        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
         {
-            var bufStream = new BufferedStream(stream, 1024);
-            _serializer.Serialize(_request, bufStream, typeof(RpcRequest));
-            await bufStream.FlushAsync();
+            return _serializer.Serialize(_request, stream);
         }
 
         protected override bool TryComputeLength(out long length)

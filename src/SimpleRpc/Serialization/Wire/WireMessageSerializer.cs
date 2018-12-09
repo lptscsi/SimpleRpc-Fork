@@ -1,6 +1,7 @@
 ﻿using SimpleRpc.Serialization.Wire.Library;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace SimpleRpc.Serialization.Wire
 {
@@ -17,14 +18,15 @@ namespace SimpleRpc.Serialization.Wire
 
         public string ContentType => "application/x-wire";
 
-        public void Serialize(object message, Stream stream, Type type)
+        public Task Serialize<T>(T message, Stream stream)
         {
             _serializer.Serialize(message, stream);
+            return Task.CompletedTask;
         }
 
-        public object Deserialize(Stream stream, Type type)
+        public Task<T> Deserialize<T>(Stream stream)
         {
-            return _serializer.Deserialize(stream);
+            return Task.FromResult(_serializer.Deserialize<T>(stream));
         }
     }
 }

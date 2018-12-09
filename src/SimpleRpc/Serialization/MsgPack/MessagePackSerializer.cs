@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using MessagePack;
 using MessagePack.Formatters;
 using MessagePack.Resolvers;
@@ -37,14 +38,15 @@ namespace SimpleRpc.Serialization.MsgPack
 
         public string ContentType => "application/x-msgpack";
 
-        public void Serialize(object message, Stream stream, Type type)
+        public Task Serialize<T>(T message, Stream stream)
         {
-            LZ4MessagePackSerializer.NonGeneric.Serialize(type, stream, message, _resolver);
+            LZ4MessagePackSerializer.Serialize(stream, message, _resolver);
+            return Task.CompletedTask;
         }
 
-        public object Deserialize(Stream stream, Type type)
+        public Task<T> Deserialize<T>(Stream stream)
         {
-            return LZ4MessagePackSerializer.NonGeneric.Deserialize(type, stream, _resolver);
+            return Task.FromResult(LZ4MessagePackSerializer.Deserialize<T>(stream, _resolver));
         }
     }
 }

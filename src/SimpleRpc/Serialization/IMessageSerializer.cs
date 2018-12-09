@@ -1,5 +1,5 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
+using System.Threading.Tasks;
 
 namespace SimpleRpc.Serialization
 {
@@ -9,8 +9,8 @@ namespace SimpleRpc.Serialization
 
         string ContentType { get; }
 
-        void Serialize(object message, Stream stream, Type type);
+        Task Serialize<T>(T message, Stream stream);
 
-        object Deserialize(Stream stream, Type type);
+        Task<T> Deserialize<T>(Stream stream);
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using SimpleRpc.Sample.Shared;
@@ -14,7 +15,7 @@ namespace SimpleRpc.Sample.Client
         {
             Console.WriteLine("Wait a little ...");
             await Task.Delay(2000);
-
+            
             var sc = new ServiceCollection();
 
             sc.AddSimpleRpcClient("sample", new HttpClientTransportOptions
