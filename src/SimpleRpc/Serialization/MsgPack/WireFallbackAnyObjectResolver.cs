@@ -1,8 +1,8 @@
-﻿using System.IO;
-using MessagePack;
+﻿using MessagePack;
 using MessagePack.Formatters;
 using SimpleRpc.Serialization.Wire;
 using SimpleRpc.Serialization.Wire.Library.Extensions;
+using System.IO;
 
 namespace SimpleRpc.Serialization.MsgPack
 {

@@ -1,11 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
-using MessagePack;
+﻿using MessagePack;
 using MessagePack.Formatters;
 using MessagePack.Resolvers;
 using SimpleRpc.Serialization.Wire.Library.Extensions;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace SimpleRpc.Serialization.MsgPack
 {

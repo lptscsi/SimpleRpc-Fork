@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SimpleRpc.Serialization;
 using System;
-using System.IO;
 using System.Threading.Tasks;
 
 namespace SimpleRpc.Transports.Http.Server

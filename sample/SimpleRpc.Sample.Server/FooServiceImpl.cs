@@ -1,7 +1,7 @@
-﻿using System;
+﻿using SimpleRpc.Sample.Shared;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using SimpleRpc.Sample.Shared;
 
 namespace SimpleRPC.Sample.Server
 {

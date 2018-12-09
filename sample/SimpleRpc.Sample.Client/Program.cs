@@ -1,11 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using SimpleRpc.Sample.Shared;
 using SimpleRpc.Transports;
 using SimpleRpc.Transports.Http.Client;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace SimpleRpc.Sample.Client
 {
