@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <Description>A simple and fast contractless RPC library for .NET and .NET Core, over IServiceCollection</Description>
+        <VersionPrefix>0.0.1.0</VersionPrefix>
+        <PackageTags>rpc;simplerpc;easyrpc;easy;simple</PackageTags>
+        <Authors>Daniil Sokolyuk</Authors>
+        <PackageProjectUrl>https://github.com/DaniilSokolyuk/SimpleRpc</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/DaniilSokolyuk/SimpleRpc</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <TargetFramework>netstandard2.0</TargetFramework>
+
+        <!--<SignAssembly>true</SignAssembly>
+        <AssemblyOriginatorKeyFile>..\..\build\key.snk</AssemblyOriginatorKeyFile>-->
+
+        <NoWarn>1591</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Remove="key.snk" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Castle.Core" Version="4.3.1" />
+        <PackageReference Include="MessagePack" Version="1.7.3.4" />
+        <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.2.0" />
+        <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
+        <PackageReference Include="Microsoft.Extensions.Http" Version="2.2.0" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.2.0" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="2.2.0" />
+        <PackageReference Include="System.Net.Http" Version="4.3.4" />
+        <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.3.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Reflect\" />
+    </ItemGroup>
+</Project>
