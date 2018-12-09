@@ -10,26 +10,26 @@ namespace SimpleRpc.Sample.Client
 {
     class Program
     {
-        static async Task Main(string[] args)
+        static ServiceProvider AddServices()
         {
-            Console.WriteLine("Wait a little ...");
-            await Task.Delay(2000);
-            
             var sc = new ServiceCollection();
-
             sc.AddSimpleRpcClient("sample", new HttpClientTransportOptions
             {
-               Url = "http://127.0.0.1:5000/rpc"
+                Url = "http://127.0.0.1:5000/rpc"
             });
 
             sc.AddSimpleRpcProxy<IFooService>("sample");
             sc.AddTransient<Client>();
+            return sc.BuildServiceProvider();
+        }
 
-            using (var pr = sc.BuildServiceProvider())
+        static async Task Main(string[] args)
+        {
+            using (var rootProvider = AddServices())
             {
                 Func<Task> action = async () =>
                 {
-                    using (var scope = pr.CreateScope())
+                    using (var scope = rootProvider.CreateScope())
                     {
                         var provider = scope.ServiceProvider;
                         var client = provider.GetService<Client>();
@@ -40,8 +40,11 @@ namespace SimpleRpc.Sample.Client
                     }
                 };
 
+                Console.WriteLine("Wait a little ... for the server be started");
+                await Task.Delay(2000);
+
                 List<Task> tasks = new List<Task>();
-                for (int i = 0; i < 6; ++i)
+                for (int i = 0; i < 5; ++i)
                 {
                     tasks.Add(action());
                 }
