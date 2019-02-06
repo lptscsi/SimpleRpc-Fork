@@ -23,7 +23,7 @@ namespace SimpleRpc.Sample.Client
             await service.WriteFooAsync("TaskFoo", "TaskBar");
         }
 
-        public async Task TestConcatAsync(int iterations = 5000)
+        public async Task TestConcatAsync(int iterations = 100)
         {
             var startTime = DateTime.Now;
             

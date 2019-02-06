@@ -9,6 +9,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
+#if NET461
+
+#endif
+
 namespace SimpleRpc.Serialization.Wire.Library.Extensions
 {
     public static class BindingFlagsEx
@@ -35,7 +39,9 @@ namespace SimpleRpc.Serialization.Wire.Library.Extensions
                     current
                         .GetTypeInfo()
                         .GetFields(BindingFlagsEx.All)
+#if NET461
                         .Where(f => !f.IsDefined(typeof(NonSerializedAttribute)))
+#endif
                         .Where(f => !f.IsStatic)
                         .Where(f => f.FieldType != typeof(IntPtr))
                         .Where(f => f.FieldType != typeof(UIntPtr))

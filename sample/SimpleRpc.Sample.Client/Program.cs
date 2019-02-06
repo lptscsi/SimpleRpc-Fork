@@ -44,7 +44,7 @@ namespace SimpleRpc.Sample.Client
                 await Task.Delay(2000);
 
                 List<Task> tasks = new List<Task>();
-                for (int i = 0; i < 5; ++i)
+                for (int i = 0; i < 2; ++i)
                 {
                     tasks.Add(action());
                 }

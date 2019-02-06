@@ -3,6 +3,7 @@
 //       Copyright (C) 2015-2017 Asynkron HB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
+#if NET461
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -69,3 +70,5 @@ namespace SimpleRpc.Serialization.Wire.Library.SerializerFactories
         }
     }
 }
+
+#endif

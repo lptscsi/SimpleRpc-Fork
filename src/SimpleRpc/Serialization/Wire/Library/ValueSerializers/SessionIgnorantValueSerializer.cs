@@ -28,7 +28,11 @@ namespace SimpleRpc.Serialization.Wire.Library.ValueSerializers
             _write = GetStatic(writeStaticMethod, typeof(void));
             _read = GetStatic(readStaticMethod, typeof(TElementType));
 
+#if NET461
+            var c = new IlCompiler<Action<Stream, object>>();
+#else
             var c = new Compiler<Action<Stream, object>>();
+#endif
 
             var stream = c.Parameter<Stream>("stream");
             var value = c.Parameter<object>("value");
@@ -37,7 +41,11 @@ namespace SimpleRpc.Serialization.Wire.Library.ValueSerializers
 
             _writeCompiled = c.Compile();
 
+#if NET461
+            var c2 = new IlCompiler<Func<Stream, TElementType>>();
+#else
             var c2 = new Compiler<Func<Stream, TElementType>>();
+#endif
 
             var stream2 = c2.Parameter<Stream>("stream");
             c2.EmitStaticCall(_read, stream2);
