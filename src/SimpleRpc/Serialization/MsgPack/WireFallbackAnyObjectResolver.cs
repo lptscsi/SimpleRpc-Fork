@@ -1,7 +1,7 @@
 ﻿using MessagePack;
 using MessagePack.Formatters;
 using SimpleRpc.Serialization.Wire;
-using SimpleRpc.Serialization.Wire.Library.Extensions;
+using System.Buffers;
 using System.IO;
 
 namespace SimpleRpc.Serialization.MsgPack
@@ -19,33 +19,31 @@ namespace SimpleRpc.Serialization.MsgPack
         {
             public static WireAnyObjectFormatter<T> instance = new WireAnyObjectFormatter<T>();
 
-            public int Serialize(ref byte[] bytes, int offset, T value, IFormatterResolver formatterResolver)
+            public void Serialize(ref MessagePackWriter writer, T value, MessagePackSerializerOptions options)
             {
                 if (value == null)
                 {
-                    return MessagePackBinary.WriteNil(ref bytes, offset);
+                    writer.WriteNil();
                 }
 
                 using (var stream = new MemoryStream())
                 {
                     WireMessageSerializer._serializer.Serialize(value, stream);
 
-                    return MessagePackBinary.WriteBytes(ref bytes, offset, stream.ToArray());
+                    writer.Write(stream.ToArray());
                 }
             }
 
-            T IMessagePackFormatter<T>.Deserialize(byte[] bytes, int offset, IFormatterResolver formatterResolver,
-                out int readSize)
+            T IMessagePackFormatter<T>.Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
             {
-                if (MessagePackBinary.IsNil(bytes, offset))
+                if (reader.IsNil)
                 {
-                    readSize = 1;
                     return default(T);
                 }
 
                 using (var stream = new MemoryStream())
                 {
-                    stream.Write(MessagePackBinary.ReadBytes(bytes, offset, out readSize));
+                    stream.Write(reader.ReadBytes().Value.ToArray());
                     stream.Position = 0;
 
                     return (T)WireMessageSerializer._serializer.Deserialize(stream);

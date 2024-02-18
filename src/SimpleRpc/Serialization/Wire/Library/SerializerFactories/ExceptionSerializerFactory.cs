@@ -37,19 +37,14 @@ namespace SimpleRpc.Serialization.Wire.Library.SerializerFactories
 
         public override bool CanDeserialize(Serializer serializer, Type type) => CanSerialize(serializer, type);
 
-        // Workaround for CoreCLR where FormatterServices.GetUninitializedObject is not public
-        private static readonly Func<Type, object> GetUninitializedObject =
-            (Func<Type, object>)
-                typeof(string).GetTypeInfo().Assembly.GetType("System.Runtime.Serialization.FormatterServices")
-                    .GetMethod("GetUninitializedObject", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)
-                    .CreateDelegate(typeof(Func<Type, object>));
-
         public override ValueSerializer BuildSerializer(Serializer serializer, Type type,
             ConcurrentDictionary<Type, ValueSerializer> typeMapping)
         {
             var exceptionSerializer = new ObjectSerializer(type);
             var hasDefaultConstructor = type.GetTypeInfo().GetConstructor(new Type[0]) != null;
-            var createInstance = hasDefaultConstructor ? Activator.CreateInstance : GetUninitializedObject;
+            Func<Type, object> createInst1 = (type) => Activator.CreateInstance(type);
+            Func<Type, object> createInst2 = (type) => System.Runtime.Serialization.FormatterServices.GetUninitializedObject(type);
+            var createInstance = hasDefaultConstructor ? createInst1 : createInst2;
 
             exceptionSerializer.Initialize((stream, session) =>
             {

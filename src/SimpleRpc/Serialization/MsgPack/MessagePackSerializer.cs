@@ -15,7 +15,9 @@ namespace SimpleRpc.Serialization.MsgPack
 
         static MsgPackSerializer()
         {
-            CompositeResolver.Register(TypelessContractlessStandardResolver.Instance, FallbackAnyObjectResolver.Instance);
+           IFormatterResolver formatterResolver1 = CompositeResolver.Create(
+               TypelessContractlessStandardResolver.Instance,
+               FallbackAnyObjectResolver.Instance);
 
             var list = new List<IMessagePackFormatter>
             {
@@ -29,9 +31,9 @@ namespace SimpleRpc.Serialization.MsgPack
                 list.Add((IMessagePackFormatter)Activator.CreateInstance(typeof(TypeFormatter<>).MakeGenericType(TypeEx.RuntimeType)));
             }
 
-            CompositeResolver.Register(list.ToArray());
+            IFormatterResolver formatterResolver2 = CompositeResolver.Create(list.ToArray());
 
-            _resolver = CompositeResolver.Instance;
+            _resolver = CompositeResolver.Create(formatterResolver1, formatterResolver2);
         }
 
         public string Name => Constants.DefaultSerializers.MessagePack;
@@ -40,13 +42,16 @@ namespace SimpleRpc.Serialization.MsgPack
 
         public Task Serialize<T>(T message, Stream stream)
         {
-            LZ4MessagePackSerializer.Serialize(stream, message, _resolver);
+            //lz4Options = MessagePackSerializerOptions.Standard.WithCompression(MessagePackCompression.Lz4BlockArray);
+            MessagePackSerializerOptions serializerOptions = new MessagePackSerializerOptions(_resolver);
+            MessagePackSerializer.Serialize(stream, message, serializerOptions);
             return Task.CompletedTask;
         }
 
         public Task<T> Deserialize<T>(Stream stream)
         {
-            return Task.FromResult(LZ4MessagePackSerializer.Deserialize<T>(stream, _resolver));
+            MessagePackSerializerOptions serializerOptions = new MessagePackSerializerOptions(_resolver);
+            return Task.FromResult(MessagePackSerializer.Deserialize<T>(stream, serializerOptions));
         }
     }
 }

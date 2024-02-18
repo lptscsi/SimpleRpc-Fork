@@ -16,14 +16,14 @@ namespace SimpleRpc.Serialization.MsgPack
         {
             public static TypelessGenericObjectFormatter<T> instance = new TypelessGenericObjectFormatter<T>();
 
-            public int Serialize(ref byte[] bytes, int offset, T value, IFormatterResolver formatterResolver)
+            public void Serialize(ref MessagePackWriter writer, T value, MessagePackSerializerOptions options)
             {
-                return TypelessFormatter.Instance.Serialize(ref bytes, offset, value, formatterResolver);
+                TypelessFormatter.Instance.Serialize(ref writer, value, options);
             }
 
-            T IMessagePackFormatter<T>.Deserialize(byte[] bytes, int offset, IFormatterResolver formatterResolver, out int readSize)
+            T IMessagePackFormatter<T>.Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
             {
-                return (T)TypelessFormatter.Instance.Deserialize(bytes, offset, formatterResolver, out readSize);
+                return (T)TypelessFormatter.Instance.Deserialize(ref reader, options);
             }
         }
     }

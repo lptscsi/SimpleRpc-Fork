@@ -1,14 +1,17 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using MessagePack;
+﻿using MessagePack;
 using MessagePack.Formatters;
 using SimpleRpc.Serialization.Wire.Library.Extensions;
 using SimpleRpc.Serialization.Wire.Library.Internal;
+using System;
+using System.Buffers;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Text;
 
 namespace SimpleRpc.Serialization.MsgPack
 {
-    public class TypeFormatter<T> : IMessagePackFormatter<T> where T : Type
+    public class TypeFormatter<T> : IMessagePackFormatter<T> 
+        where T : Type
     {
         private static readonly ConcurrentDictionary<ByteArrayKey, Type> _byteTypeNameLookup = new ConcurrentDictionary<ByteArrayKey, Type>(ByteArrayKeyComparer.Instance);
         private static readonly ConcurrentDictionary<Type, byte[]> _typeByteNameLookup = new ConcurrentDictionary<Type, byte[]>();
@@ -19,11 +22,11 @@ namespace SimpleRpc.Serialization.MsgPack
             new KeyValuePair<string, string>("Collection", "$c"),
         };
 
-        public int Serialize(ref byte[] bytes, int offset, T value, IFormatterResolver formatterResolver)
+        public void Serialize(ref MessagePackWriter writer, T value, MessagePackSerializerOptions options)
         {
             if (value == null)
             {
-                return MessagePackBinary.WriteNil(ref bytes, offset);
+                writer.WriteNil();
             }
 
             var stringAsBytes = _typeByteNameLookup.GetOrAdd(value, type =>
@@ -34,29 +37,28 @@ namespace SimpleRpc.Serialization.MsgPack
                     shortName = shortName.Replace(x.Key, x.Value);
                 });
 
-                var byteArr =new ByteArrayKey(MessagePackBinary.GetEncodedStringBytes(shortName));
+                var byteArr =new ByteArrayKey(Encoding.UTF8.GetBytes(shortName));
 
                 _byteTypeNameLookup.TryAdd(byteArr, type); //add to reverse cache
 
                 return byteArr.Bytes;
             });
 
-            return MessagePackBinary.WriteBytes(ref bytes, offset, stringAsBytes);
+            writer.Write(stringAsBytes);
         }
 
-        T IMessagePackFormatter<T>.Deserialize(byte[] bytes, int offset, IFormatterResolver formatterResolver, out int readSize)
+        T IMessagePackFormatter<T>.Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
         {
-            if (MessagePackBinary.IsNil(bytes, offset))
+            if (reader.IsNil)
             {
-                readSize = 1;
                 return null;
             }
 
-            var byteArr = new ByteArrayKey(MessagePackBinary.ReadBytes(bytes, offset, out readSize));
+            var byteArr = new ByteArrayKey(reader.ReadBytes().Value.ToArray());
 
             return (T)_byteTypeNameLookup.GetOrAdd(byteArr, b =>
             {
-                var typename = TypeEx.ToQualifiedAssemblyName(MessagePackBinary.ReadString(byteArr.Bytes, 0, out _));
+                var typename = TypeEx.ToQualifiedAssemblyName(Encoding.UTF8.GetString(byteArr.Bytes));
                 _macroses.ForEach(x =>
                 {
                     typename = typename.Replace(x.Value, x.Key);
