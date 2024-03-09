@@ -4,6 +4,6 @@
     {
         public string Name { get; set; }
         
-        public IClientTransport Transport { get; set; }
+        public BaseClientTransport Transport { get; set; }
     }
 }

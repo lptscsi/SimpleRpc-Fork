@@ -57,37 +57,26 @@ namespace SimpleRpc.Transports
         }
 
         public static IServiceCollection AddSimpleRpcProxy<T>(this IServiceCollection services, string clientName)
-        {
-            AddSimpleRpcProxy(services, typeof(T), clientName);
-
-            return services;
-        }
-
-        public static IServiceCollection AddSimpleRpcProxy(this IServiceCollection services, Type interfaceToProxy, string clientName)
+            where T : class
         {
             if (string.IsNullOrEmpty(clientName))
             {
                 throw new ArgumentNullException(nameof(clientName));
             }
 
-            if (interfaceToProxy == null)
-            {
-                throw new ArgumentNullException(nameof(interfaceToProxy));
-            }
-
-            if (!interfaceToProxy.IsInterface)
-            {
-                throw new NotSupportedException("You can use AddSimpleRpcProxy only on interfaces");
-            }
-
-            services.TryAddSingleton(interfaceToProxy, sp => sp.GetService<IClientConfigurationManager>().Get(clientName).BuildProxy(interfaceToProxy));
+            services.TryAddSingleton<T>(sp => {
+                BaseClientTransport clientTransport = sp.GetService<IClientConfigurationManager>().Get(clientName);
+                return RoutableProxy.Create<T>(clientTransport);
+        
+             });
 
             return services;
         }
 
         public static IServiceCollection AddSimpleRpcServer<T>(
             this IServiceCollection services,
-            IServerTransportOptions<T> serverTransportOptions) where T : class, IServerTransport, new()
+            IServerTransportOptions<T> serverTransportOptions) 
+            where T : class, IServerTransport, new()
         {
             if (serverTransportOptions == null)
             {

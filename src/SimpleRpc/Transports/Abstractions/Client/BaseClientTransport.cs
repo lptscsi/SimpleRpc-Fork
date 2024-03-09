@@ -1,58 +1,82 @@
-﻿using System;
+﻿using Fasterflect;
+using System;
+using System.Reflection;
 using System.Threading.Tasks;
-using Castle.DynamicProxy;
-using Fasterflect;
 
 namespace SimpleRpc.Transports.Abstractions.Client
 {
-    public abstract class BaseClientTransport : IInterceptor, IClientTransport
+    public class RoutableProxy : DispatchProxy
     {
-        private static readonly ProxyGenerator _proxyGenerator = new ProxyGenerator();
+        private BaseClientTransport? _transport;
 
+        public RoutableProxy()
+        { }
+
+    
+        public static T Create<T>(BaseClientTransport transport)
+            where T : class
+        {
+            if (transport == null)
+                throw new ArgumentNullException(nameof(transport));
+
+            object proxy = Create<T, RoutableProxy>();
+            var routableProxy = (RoutableProxy)proxy;
+
+            routableProxy._transport = transport;
+
+            return (T)proxy;
+        }
+
+        /// <inheritdoc/>
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (_transport == null)
+                throw new InvalidOperationException("Proxy transport is NULL");
+    
+            if (targetMethod == null)
+            {
+                return null;
+            }
+
+            return _transport.Invoke(targetMethod, args);
+        }
+    }
+
+    public abstract class BaseClientTransport : IClientTransport
+    {
         public abstract object HandleSync(RpcRequest rpcRequest);
 
         public abstract Task HandleAsync(RpcRequest rpcRequest);
 
         public abstract Task<T> HandleAsyncWithResult<T>(RpcRequest rpcRequest);
 
-        public object BuildProxy(Type t)
-        {
-            return _proxyGenerator.CreateInterfaceProxyWithoutTarget(t, this);
-        }
-
-        public void Intercept(IInvocation invocation)
+        public object Invoke(MethodInfo targetMethod, object?[]? args)
         {
             var rpcRequest = new RpcRequest
             {
-                Method = new MethodModel(invocation.Method, invocation.GenericArguments),
-                Parameters = invocation.Arguments
+                Method = new MethodModel(targetMethod, targetMethod.GetGenericArguments()),
+                Parameters = args
             };
 
-            if (typeof(Task).IsAssignableFrom(invocation.Method.ReturnType))
+            if (typeof(Task).IsAssignableFrom(targetMethod.ReturnType))
             {
                 //Task<T>
-                if (invocation.Method.ReturnType.IsGenericType)
+                if (targetMethod.ReturnType.IsGenericType)
                 {
-                    invocation.ReturnValue = this.CallMethod(
-                        invocation.Method.ReturnType.GetGenericArguments(), 
+                      return this.CallMethod(
+                        targetMethod.ReturnType.GetGenericArguments(), 
                         nameof(HandleAsyncWithResult),
                         rpcRequest);
                 }
                 else
                 {
                     //Task
-                    invocation.ReturnValue = HandleAsync(rpcRequest);
+                    return HandleAsync(rpcRequest);
                 }
-            }
-            else if (invocation.Method.ReturnType != typeof(void))
-            {          
-                //T
-                invocation.ReturnValue = HandleSync(rpcRequest);
             }
             else
             {
-                //void
-                HandleSync(rpcRequest);
+                return HandleSync(rpcRequest);
             }
         }
     }
