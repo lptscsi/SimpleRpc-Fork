@@ -9,18 +9,24 @@ namespace SimpleRpc
     {
         public MethodModel() { }
 
+        private static string GetTypeName(Type type)
+        {
+            return $"{type.FullName}, {type.Assembly.GetName().Name }";
+        }
+
         public MethodModel(Type declaringType, string methodName, Type[] parameterTypes, Type returnType, Type[] genericArguments)
         {
-            DeclaringType = declaringType.AssemblyQualifiedName;
+            DeclaringType = GetTypeName(declaringType);
+
             MethodName = methodName;
-            ParameterTypes = parameterTypes.Select(p => p.AssemblyQualifiedName).ToArray();
+            ParameterTypes = parameterTypes.Select(p => GetTypeName(p)).ToArray();
 
             if (typeof(Task).IsAssignableFrom(returnType))
             {
                 IsAsync = true;
                 if (returnType.IsGenericType)
                 {
-                    ReturnType = returnType.GetGenericArguments()[0].AssemblyQualifiedName;
+                    ReturnType = GetTypeName(returnType.GetGenericArguments()[0]);
                 }
                 else
                 {
@@ -35,11 +41,11 @@ namespace SimpleRpc
                 }
                 else
                 {
-                    ReturnType = returnType.AssemblyQualifiedName;
+                    ReturnType = GetTypeName(returnType);
                 }
             }
 
-            GenericArguments = genericArguments.Select(p => p.AssemblyQualifiedName).ToArray();
+            GenericArguments = genericArguments.Select(p => GetTypeName(p)).ToArray();
         }
 
         public MethodModel(MethodInfo method, Type[] genericArguments) :
