@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SimpleRpc.Serialization;
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace SimpleRpc.Transports.Http.Server
@@ -48,11 +49,18 @@ namespace SimpleRpc.Transports.Http.Server
                     _logger.LogError(ex, context.Request.ContentType);
                 }
 
-                if (serializer != null)
+                if (rpcError == null)
                 {
                     try
                     {
                         rpcRequest = await serializer.Deserialize<RpcRequest>(context.Request.Body);
+                        RpcServer rpcServer = new RpcServer(_serviceProvider, _logger);
+                        RpcResponse rpcResponse = await rpcServer.Invoke(rpcRequest);
+                        context.Response.ContentType = serializer.ContentType;
+                        MemoryStream memoryStream = new MemoryStream();
+                        await serializer.Serialize(rpcResponse, memoryStream);
+                        memoryStream.Seek(0, SeekOrigin.Begin);
+                        await memoryStream.CopyToAsync(context.Response.Body);
                     }
                     catch (Exception e)
                     {
@@ -63,43 +71,20 @@ namespace SimpleRpc.Transports.Http.Server
                         };
 
                         _logger.LogError(e, rpcError.Code.ToString());
-                    }
-                }
-
-                if (rpcRequest != null)
-                {
-                    try
-                    {
-                        using (var scope = _serviceProvider.CreateScope())
+                     
+                        if (serializer == null)
                         {
-                            result = await rpcRequest.Invoke(scope.ServiceProvider);
+                            serializer = SerializationHelper.GetByName(Constants.DefaultSerializers.Json);
                         }
-                    }
-                    catch (Exception e)
-                    {
-                        rpcError = new RpcError
+
+                        RpcResponse rpcResponse = new RpcResponse()
                         {
-                            Code = RpcErrorCode.RemoteMethodInvocation,
-                            Exception = e.Message,
+                            Error = rpcError,
+                            Result  = null
                         };
-
-                        _logger.LogError(e, rpcError.Code.ToString(), rpcRequest);
+                        await serializer.Serialize(rpcResponse, context.Response.Body);
                     }
                 }
-
-                if (serializer == null)
-                {
-                    serializer = SerializationHelper.GetByName(Constants.DefaultSerializers.Json);
-                }
-
-                context.Response.ContentType = serializer.ContentType;
-                await serializer.Serialize(
-                    new RpcResponse
-                    {
-                        Result = result,
-                        Error = rpcError
-                    },
-                    context.Response.Body);
             }
         }
     }
