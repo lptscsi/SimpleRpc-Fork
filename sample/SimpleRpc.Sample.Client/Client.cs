@@ -23,7 +23,7 @@ namespace SimpleRpc.Sample.Client
             await service.WriteFooAsync("TaskFoo", "TaskBar");
         }
 
-        public async Task TestConcatAsync(int iterations = 100)
+        public async Task TestConcatAsync(int iterations = 1000)
         {
             var startTime = DateTime.Now;
             
@@ -38,7 +38,7 @@ namespace SimpleRpc.Sample.Client
             Console.WriteLine($"End ConcatAsync: Time {diff}, Performance: {(iterations / diff.TotalMilliseconds) * 1000} msg/sec");
         }
 
-        public async Task TestReturnGenericType(int iterations = 100)
+        public async Task TestReturnGenericType(int iterations = 1000)
         {
             List<string> list = new List<string>();
             for (int i = 0; i < 10; ++i)
