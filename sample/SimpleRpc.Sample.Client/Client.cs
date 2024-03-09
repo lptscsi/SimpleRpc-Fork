@@ -41,7 +41,7 @@ namespace SimpleRpc.Sample.Client
         public async Task TestReturnGenericType(int iterations = 100)
         {
             List<string> list = new List<string>();
-            for (int i = 0; i < 10000; ++i)
+            for (int i = 0; i < 100; ++i)
             {
                 list.Add($"Item {i} RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR VVVVVVVVVVVVVVVVVVVVVVVV ФФФФФФФФФФФФФФФФФФФФФФФФФФФФФ TTTTTTTTTTTTTTTTTTTTT");
             }
