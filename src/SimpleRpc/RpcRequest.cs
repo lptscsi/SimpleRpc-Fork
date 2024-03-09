@@ -1,7 +1,9 @@
-﻿using System;
-using System.Threading.Tasks;
-using Fasterflect;
+﻿using Fasterflect;
 using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace SimpleRpc
 {
@@ -13,27 +15,57 @@ namespace SimpleRpc
 
         public async Task<object> Invoke(IServiceProvider serviceProvider)
         {
-            var resolvedType = serviceProvider.GetRequiredService(Method.DeclaringType);
+            Type declaringType = Type.GetType(Method.DeclaringType);
+            var resolvedType = serviceProvider.GetRequiredService(declaringType);
 
-            var result = resolvedType.CallMethod(
-                Method.GenericArguments,
-                Method.MethodName,
-                Method.ParameterTypes,
-                Parameters);
+            Type[] genericArgs = Method.GenericArguments.Select(p => Type.GetType(p)).ToArray();
+            Type[] paramTypes = Method.ParameterTypes.Select(p => Type.GetType(p)).ToArray();
 
-            if (result is Task task)
+            if (paramTypes.Length != Parameters.Length)
             {
-                await task;
-
-                if (task.GetType().IsGenericType)
-                {
-                    return task.GetPropertyValue(nameof(Task<object>.Result));
-                }
-
-                return null;
+                throw new InvalidOperationException("ParamTypes.Length != Parameters.Length");
             }
 
-            return result;
+            object[] parameters = new object[Parameters.Length];
+
+            for (int i = 0; i < Parameters.Length; i++)
+            {
+                object p = Parameters[i];
+                Type type = paramTypes[i];
+                if (p != null && p is JsonElement element)
+                {
+                   parameters[i] = element.Deserialize(type);
+                }
+            }
+
+            try
+            {
+                var result = resolvedType.CallMethod(
+                    genericArgs,
+                    Method.MethodName,
+                    paramTypes,
+                    parameters);
+
+                if (result is Task task)
+                {
+                    await task;
+
+                    if (!string.IsNullOrEmpty(Method.ReturnType)) 
+                    {
+                        Type returnType = Type.GetType(Method.ReturnType);
+                        object res = task.GetPropertyValue(nameof(Task<object>.Result));
+                        return res;
+                    }
+
+                    return null;
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
         }
     }
 }

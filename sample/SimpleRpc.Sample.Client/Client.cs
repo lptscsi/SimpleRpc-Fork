@@ -41,7 +41,7 @@ namespace SimpleRpc.Sample.Client
         public async Task TestReturnGenericType(int iterations = 100)
         {
             List<string> list = new List<string>();
-            for (int i = 0; i < 100; ++i)
+            for (int i = 0; i < 10; ++i)
             {
                 list.Add($"Item {i} RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR VVVVVVVVVVVVVVVVVVVVVVVV ФФФФФФФФФФФФФФФФФФФФФФФФФФФФФ TTTTTTTTTTTTTTTTTTTTT");
             }
@@ -55,7 +55,7 @@ namespace SimpleRpc.Sample.Client
 
             for (int i = 0; i < iterations; ++i)
             {
-                await service.ReturnGenericType<string>(list);
+               var reslt = await service.ReturnGenericType<string>(list);
             }
 
             var diff = DateTime.Now - startTime;

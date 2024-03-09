@@ -59,7 +59,7 @@ namespace SimpleRpc.Transports.Http.Server
                         rpcError = new RpcError
                         {
                             Code = RpcErrorCode.IncorrectRequestBodyFormat,
-                            Exception = e,
+                            Exception = e.Message,
                         };
 
                         _logger.LogError(e, rpcError.Code.ToString());
@@ -80,7 +80,7 @@ namespace SimpleRpc.Transports.Http.Server
                         rpcError = new RpcError
                         {
                             Code = RpcErrorCode.RemoteMethodInvocation,
-                            Exception = e,
+                            Exception = e.Message,
                         };
 
                         _logger.LogError(e, rpcError.Code.ToString(), rpcRequest);
@@ -89,7 +89,7 @@ namespace SimpleRpc.Transports.Http.Server
 
                 if (serializer == null)
                 {
-                    serializer = SerializationHelper.GetByName(Constants.DefaultSerializers.MessagePack);
+                    serializer = SerializationHelper.GetByName(Constants.DefaultSerializers.Json);
                 }
 
                 context.Response.ContentType = serializer.ContentType;

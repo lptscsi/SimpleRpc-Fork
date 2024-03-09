@@ -1,10 +1,13 @@
 ﻿using SimpleRpc.Serialization;
 using SimpleRpc.Transports.Abstractions.Client;
+using System;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -51,7 +54,33 @@ namespace SimpleRpc.Transports.Http.Client
                         throw new RpcException(result.Error);
                     }
 
-                    return (T)result.Result;
+                    try
+                    {
+                        if (result.Result is JsonElement element)
+                        {
+                            object val = null;
+                            if (!string.IsNullOrEmpty(rpcRequest.Method.ReturnType))
+                            {
+                                Type type = Type.GetType(rpcRequest.Method.ReturnType);
+                                val = element.Deserialize(type);
+                            }
+                  
+                            if (val == null)
+                            {
+                                return default(T);
+                            }
+
+                            return (T)val;
+                        }
+                        else
+                        {
+                            return default(T);
+                        }
+                    }
+                    catch(Exception ex)
+                    {
+                        throw;
+                    }
                 }
             }
         }
@@ -69,9 +98,13 @@ namespace SimpleRpc.Transports.Http.Client
             Headers.ContentType = new MediaTypeHeaderValue(_serializer.ContentType);
         }
 
-        protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
+        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
         {
-            return _serializer.Serialize(_request, stream);
+            MemoryStream memoryStream = new MemoryStream();
+            _serializer.Serialize(_request, memoryStream);
+            memoryStream.Position = 0;
+            //string data = UTF8Encoding.UTF8.GetString( memoryStream.ToArray());
+            await memoryStream.CopyToAsync(stream);
         }
 
         protected override bool TryComputeLength(out long length)

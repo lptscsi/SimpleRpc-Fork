@@ -1,5 +1,4 @@
-﻿using SimpleRpc.Serialization.MsgPack;
-using SimpleRpc.Serialization.Wire;
+﻿using SimpleRpc.Serialization.Json;
 using System;
 using System.Collections.Generic;
 
@@ -12,8 +11,7 @@ namespace SimpleRpc.Serialization
 
         static SerializationHelper()
         {
-            Add(new WireMessageSerializer());
-            Add(new MsgPackSerializer());
+            Add(new JsonMessageSerializer());
         }
 
         public static void Add(IMessageSerializer serializer)

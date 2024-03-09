@@ -9,9 +9,7 @@
 
         public static class DefaultSerializers
         {
-            public static string Wire = "wire";
-
-            public static string MessagePack = "msgpack";
+            public static string Json = "json";
         }
     }
 }
