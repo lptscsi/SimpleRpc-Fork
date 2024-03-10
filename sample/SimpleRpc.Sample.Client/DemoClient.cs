@@ -1,6 +1,8 @@
 ﻿using SimpleRpc.Sample.Shared;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace SimpleRpc.Sample.Client
@@ -38,7 +40,7 @@ namespace SimpleRpc.Sample.Client
             Console.WriteLine($"End ConcatAsync: Time {diff}, Performance: {(iterations / diff.TotalMilliseconds) * 1000} msg/sec");
         }
 
-        public async Task TestReturnGenericType(int iterations = 1000)
+        public async Task TestReturnGenericType(int iterations = 10000)
         {
             List<string> list = new List<string>();
             for (int i = 0; i < 10; ++i)
@@ -50,14 +52,22 @@ namespace SimpleRpc.Sample.Client
 
             Console.WriteLine($"ReturnGenericType Count: {res2?.Count}");
 
+            ParallelOptions parallelOptions = new()
+            {
+                MaxDegreeOfParallelism = 8
+            };
+
+            IEnumerable<int> ints = Enumerable.Range(0, iterations);
+
             var startTime = DateTime.Now;
             Console.WriteLine($"Start ReturnGenericType Iterations: {iterations}");
 
-            for (int i = 0; i < iterations; ++i)
+            await Parallel.ForEachAsync(ints, parallelOptions, async (id, _) =>
             {
-               res2 = await service.ReturnGenericType<string>(list);
-            }
+                var res = await service.ReturnGenericType<string>(list);
+            });
 
+        
             var diff = DateTime.Now - startTime;
             Console.WriteLine($"End ReturnGenericType: Time {diff}, Performance: {(iterations / diff.TotalMilliseconds) * 1000} msg/sec");
         }
