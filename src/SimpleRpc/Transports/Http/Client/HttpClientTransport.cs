@@ -44,43 +44,17 @@ namespace SimpleRpc.Transports.Http.Client
                 {
                     httpResponseMessage.EnsureSuccessStatusCode();
 
-                    var resultSerializer = SerializationHelper.GetByContentType(httpResponseMessage.Content.Headers.ContentType.MediaType);
+                    var resultSerializer = SerializationHelper.Json;
                     var stream = await httpResponseMessage.Content.ReadAsStreamAsync().ConfigureAwait(false);
 
-                    var result = await resultSerializer.Deserialize<RpcResponse>(stream);
+                    var rpcResponse = await resultSerializer.Deserialize<RpcResponse>(stream);
 
-                    if (result.Error != null)
+                    if (rpcResponse.Error != null)
                     {
-                        throw new RpcException(result.Error);
+                        throw new RpcException(rpcResponse.Error);
                     }
 
-                    try
-                    {
-                        if (result.Result is JsonElement element)
-                        {
-                            object val = null;
-                            if (!string.IsNullOrEmpty(rpcRequest.Method.ReturnType))
-                            {
-                                Type type = Type.GetType(rpcRequest.Method.ReturnType);
-                                val = element.Deserialize(type);
-                            }
-                  
-                            if (val == null)
-                            {
-                                return default(T);
-                            }
-
-                            return (T)val;
-                        }
-                        else
-                        {
-                            return default(T);
-                        }
-                    }
-                    catch(Exception ex)
-                    {
-                        throw;
-                    }
+                    return SerializationHelper.GetResult<T>(rpcRequest, rpcResponse);
                 }
             }
         }

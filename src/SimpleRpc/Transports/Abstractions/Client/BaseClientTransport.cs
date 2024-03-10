@@ -1,5 +1,6 @@
 ﻿using Fasterflect;
 using System;
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Threading.Tasks;
 
@@ -45,6 +46,8 @@ namespace SimpleRpc.Transports.Abstractions.Client
 
     public abstract class BaseClientTransport : IClientTransport
     {
+        private static ConcurrentDictionary<MethodInfo, MethodModelCache> _metadata = new ConcurrentDictionary<MethodInfo, MethodModelCache>();
+
         public abstract object HandleSync(RpcRequest rpcRequest);
 
         public abstract Task HandleAsync(RpcRequest rpcRequest);
@@ -53,19 +56,24 @@ namespace SimpleRpc.Transports.Abstractions.Client
 
         public object Invoke(MethodInfo targetMethod, object?[]? args)
         {
+            MethodModelCache methodModel = _metadata.GetOrAdd(targetMethod, (key) =>
+            {
+                return new MethodModelCache(key);
+            });
+
             var rpcRequest = new RpcRequest
             { 
-                Method = new MethodModel(targetMethod),
+                Method = methodModel.Model,
                 Parameters = args
             };
 
-            if (typeof(Task).IsAssignableFrom(targetMethod.ReturnType))
+            if (methodModel.IsAsync)
             {
                 //Task<T>
-                if (targetMethod.ReturnType.IsGenericType)
+                if (methodModel.ReturnType != typeof(void))
                 {
                     return this.CallMethod(
-                      targetMethod.ReturnType.GetGenericArguments(),
+                      new[] { methodModel.ReturnType },
                       nameof(HandleAsyncWithResult),
                       rpcRequest);
                 }

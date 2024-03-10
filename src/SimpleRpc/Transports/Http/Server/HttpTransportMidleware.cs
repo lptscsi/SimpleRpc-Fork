@@ -39,17 +39,8 @@ namespace SimpleRpc.Transports.Http.Server
             else
             {
                 var rpcError = (RpcError)null;
-                var serializer = (IMessageSerializer)null;
-                try
-                {
-                    serializer = SerializationHelper.GetByContentType(context.Request.ContentType);
-                }
-                catch(Exception ex)
-                {
-                    rpcError = new RpcError { Code = RpcErrorCode.NotSupportedContentType };
-                    _logger.LogError(ex, context.Request.ContentType);
-                }
-
+                var serializer = SerializationHelper.Json;
+          
                 if (rpcError == null)
                 {
                     try
@@ -71,12 +62,7 @@ namespace SimpleRpc.Transports.Http.Server
                         };
 
                         _logger.LogError(e, rpcError.Code.ToString());
-                     
-                        if (serializer == null)
-                        {
-                            serializer = SerializationHelper.GetByName(Constants.DefaultSerializers.Json);
-                        }
-
+                
                         RpcResponse rpcResponse = new RpcResponse()
                         {
                             Error = rpcError,

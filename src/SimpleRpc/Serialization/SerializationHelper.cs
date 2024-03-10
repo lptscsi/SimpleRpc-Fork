@@ -1,38 +1,35 @@
 ﻿using SimpleRpc.Serialization.Json;
+using System.Text.Json;
 using System;
-using System.Collections.Generic;
 
 namespace SimpleRpc.Serialization
 {
     public static class SerializationHelper
     {
-        private static readonly IDictionary<string, IMessageSerializer> _contentTypeSerializer = new Dictionary<string, IMessageSerializer>(StringComparer.OrdinalIgnoreCase);
-        private static readonly IDictionary<string, IMessageSerializer> _nameSerializer = new Dictionary<string, IMessageSerializer>(StringComparer.OrdinalIgnoreCase);
+        public static readonly IMessageSerializer Json = new JsonMessageSerializer();
 
-        static SerializationHelper()
+        public static T GetResult<T>(RpcRequest rpcRequest, RpcResponse rpcResponse)
         {
-            Add(new JsonMessageSerializer());
-        }
-
-        public static void Add(IMessageSerializer serializer)
-        {
-            _nameSerializer.Add(serializer.Name, serializer);
-            _contentTypeSerializer.Add(serializer.ContentType, serializer);
-        }
-
-        public static IMessageSerializer GetByName(string name)
-        {
-            if (!_nameSerializer.TryGetValue(name, out var serializer))
+            if (rpcResponse.Result is JsonElement element)
             {
-                throw new Exception($"Serializer with the name: {name} is not registered");
-            }
-            return serializer;
-        }
+                object val = null;
+                if (!string.IsNullOrEmpty(rpcRequest.Method.ReturnType))
+                {
+                    Type type = Type.GetType(rpcRequest.Method.ReturnType);
+                    val = element.Deserialize(type);
+                }
 
-        public static IMessageSerializer GetByContentType(string contentType)
-        {
-            _contentTypeSerializer.TryGetValue(contentType, out var serializer);
-            return serializer;
+                if (val == null)
+                {
+                    return default(T);
+                }
+
+                return (T)val;
+            }
+            else
+            {
+                return default(T);
+            }
         }
     }
 }

@@ -41,35 +41,6 @@ namespace SimpleRpc
 
         }
 
-        private static string GetReturnType(MethodInfo method)
-        {
-            Type returnType = method.ReturnType;
-
-            if (typeof(Task).IsAssignableFrom(returnType))
-            {
-                if (returnType.IsGenericType)
-                {
-                   return GetTypeName(returnType.GetGenericArguments()[0]);
-                }
-                else
-                {
-                    return string.Empty;
-                }
-            }
-            else
-            {
-                if (returnType == typeof(void))
-                {
-                    return String.Empty;
-                }
-                else
-                {
-                    return GetTypeName(returnType);
-                }
-            }
-
-        }
-
         public MethodModel(Type declaringType, string methodName, Type[] parameterTypes, Type returnType, Type[] genericArguments)
         {
             DeclaringType = GetTypeName(declaringType);

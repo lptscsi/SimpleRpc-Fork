@@ -46,7 +46,7 @@ namespace SimpleRpc.Transports
             services.TryAddSingleton<IClientConfigurationManager, ClientConfigurationManager>();
             services.AddSingleton(typeof(ClientConfiguration), (sp)=>
             {
-                var serializer = SerializationHelper.GetByName(options.Serializer);
+                IMessageSerializer serializer = SerializationHelper.Json;
                 return new ClientConfiguration()
                 {
                     Name = clientName,

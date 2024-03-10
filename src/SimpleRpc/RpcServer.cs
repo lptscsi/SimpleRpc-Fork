@@ -16,14 +16,14 @@ namespace SimpleRpc
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger _logger;
 
-        private static ConcurrentDictionary<string, MethodModel> _metadata = new ConcurrentDictionary<string, MethodModel>();
+        private static ConcurrentDictionary<string, MethodModelCache> _metadata = new ConcurrentDictionary<string, MethodModelCache>();
 
         static RpcServer()
         {
             MethodInfo[] methods = typeof(TService).GetMethods();
             foreach(MethodInfo method in methods)
             {
-                _metadata.TryAdd(method.Name, new MethodModel(method));
+                _metadata.TryAdd(method.Name, new MethodModelCache(method));
             }
         }
 
@@ -69,12 +69,12 @@ namespace SimpleRpc
         private static async Task<object> InvokeInternal(IServiceProvider serviceProvider, RpcRequest request)
         {
             // We check that the method exists
-            if  (!_metadata.TryGetValue(request.Method.MethodName, out MethodModel methodModel))
+            if  (!_metadata.TryGetValue(request.Method.MethodName, out MethodModelCache methodModel))
             {
                 throw new InvalidOperationException($"Service does not have a method {request.Method.MethodName}");
             }
             // we check that the declaring type is te same what the client has sent
-            if (request.Method.DeclaringType != methodModel.DeclaringType)
+            if (request.Method.DeclaringType != methodModel.Model.DeclaringType)
             {
                 throw new InvalidOperationException($"Invalid method parameters for method {methodModel.MethodName}");
             }
@@ -83,8 +83,8 @@ namespace SimpleRpc
             {
                 throw new InvalidOperationException($"Invalid method parameters for method {methodModel.MethodName}");
             }
-          
-            Type declaringType = Type.GetType(methodModel.DeclaringType);
+
+            Type declaringType = methodModel.DeclaringType;
             var resolvedType = serviceProvider.GetRequiredService(declaringType);
 
             // we need this because we need generic parameters which are set on the client side
@@ -125,9 +125,9 @@ namespace SimpleRpc
                 {
                     await task;
 
-                    if (!string.IsNullOrEmpty(methodModel.ReturnType))
+                    if (!string.IsNullOrEmpty(clientSideMethodModel.ReturnType))
                     {
-                        Type returnType = Type.GetType(methodModel.ReturnType);
+                        Type returnType = Type.GetType(clientSideMethodModel.ReturnType);
                         object res = task.GetPropertyValue(nameof(Task<object>.Result));
                         return res;
                     }
