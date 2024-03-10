@@ -107,7 +107,7 @@ namespace SimpleRpc
                     Type type = paramTypes[i];
                     if (type == null)
                     {
-                        throw new InvalidOperationException();
+                        throw new InvalidOperationException($"Parameter type No:{i} for Method {methodModel.MethodName} is null");
                     }
                     if (p != null && p is JsonElement element)
                     {
