@@ -5,11 +5,11 @@ using System.Threading.Tasks;
 
 namespace SimpleRpc.Sample.Client
 {
-    public class Client: IDisposable
+    public class DemoClient: IDisposable
     {
         private readonly IFooService service;
 
-        public Client(IFooService service)
+        public DemoClient(IFooService service)
         {
             this.service = service;
         }

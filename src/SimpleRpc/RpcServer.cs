@@ -8,12 +8,13 @@ using System.Threading.Tasks;
 
 namespace SimpleRpc
 {
-    public class RpcServer
+    public class RpcServer<TService>
+        where TService : class
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger _logger;
      
-        public RpcServer(IServiceProvider serviceProvider, ILogger logger)
+        public RpcServer(IServiceProvider serviceProvider, ILogger<RpcServer<TService>> logger)
         {
             this._serviceProvider = serviceProvider;
             this._logger = logger;
@@ -30,7 +31,7 @@ namespace SimpleRpc
                 {
                     using (var scope = _serviceProvider.CreateScope())
                     {
-                        result = await RpcServer.InvokeInternal(scope.ServiceProvider, request);
+                        result = await InvokeInternal(scope.ServiceProvider, request);
                     }
                 }
                 catch (Exception e)

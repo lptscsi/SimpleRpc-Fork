@@ -2,8 +2,11 @@
 
 namespace SimpleRpc.Transports.Http.Server
 {
-    public class HttpServerTransportOptions : IServerTransportOptions<HttpServerTransport>
+    public class HttpServerTransportOptions<TService> : IServerTransportOptions<HttpServerTransport<TService>>
+        where TService : class
     {
-        public string Path { get; set; }
+        public string Path { get; init; }
+
+        public string ServiceName { get; init; }
     }
 }

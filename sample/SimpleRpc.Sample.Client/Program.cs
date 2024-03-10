@@ -19,7 +19,7 @@ namespace SimpleRpc.Sample.Client
             });
 
             sc.AddSimpleRpcProxy<IFooService>("sample");
-            sc.AddTransient<Client>();
+            sc.AddTransient<DemoClient>();
             return sc.BuildServiceProvider();
         }
 
@@ -32,7 +32,7 @@ namespace SimpleRpc.Sample.Client
                     using (var scope = rootProvider.CreateScope())
                     {
                         var provider = scope.ServiceProvider;
-                        var client = provider.GetService<Client>();
+                        var client = provider.GetService<DemoClient>();
                         await client.TestMain();
                         await client.TestConcatAsync();
                         await client.TestReturnGenericType();

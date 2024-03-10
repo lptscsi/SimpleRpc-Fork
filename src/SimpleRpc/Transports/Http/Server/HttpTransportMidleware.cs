@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SimpleRpc.Serialization;
 using System;
@@ -8,22 +7,26 @@ using System.Threading.Tasks;
 
 namespace SimpleRpc.Transports.Http.Server
 {
-    internal class HttpTransportMidleware
+    internal class HttpTransportMidleware<TService>
+        where TService : class
     {
         private readonly RequestDelegate _next;
-        private readonly ILogger<HttpTransportMidleware> _logger;
+        private readonly ILogger<HttpTransportMidleware<TService>> _logger;
         private readonly IServiceProvider _serviceProvider;
-        private readonly HttpServerTransportOptions _httpServerTransportOptions;
+        private readonly HttpServerTransportOptions<TService> _httpServerTransportOptions;
+        private readonly RpcServer<TService> _rpcServer;
 
         public HttpTransportMidleware(
             RequestDelegate next, 
-            ILogger<HttpTransportMidleware> logger, 
+            ILogger<HttpTransportMidleware<TService>> logger, 
             IServiceProvider serviceProvider, 
-            HttpServerTransportOptions httpServerTransportOptions)
+            RpcServer<TService> rpcServer,
+            HttpServerTransportOptions<TService> httpServerTransportOptions)
         {
             _next = next;
             _logger = logger;
             _serviceProvider = serviceProvider;
+            _rpcServer = rpcServer;
             _httpServerTransportOptions = httpServerTransportOptions;
         }
 
@@ -35,9 +38,7 @@ namespace SimpleRpc.Transports.Http.Server
             }
             else
             {
-                var rpcRequest = (RpcRequest)null;
                 var rpcError = (RpcError)null;
-                var result = (object)null;
                 var serializer = (IMessageSerializer)null;
                 try
                 {
@@ -53,9 +54,8 @@ namespace SimpleRpc.Transports.Http.Server
                 {
                     try
                     {
-                        rpcRequest = await serializer.Deserialize<RpcRequest>(context.Request.Body);
-                        RpcServer rpcServer = new RpcServer(_serviceProvider, _logger);
-                        RpcResponse rpcResponse = await rpcServer.Invoke(rpcRequest);
+                        RpcRequest rpcRequest = await serializer.Deserialize<RpcRequest>(context.Request.Body);
+                        RpcResponse rpcResponse = await _rpcServer.Invoke(rpcRequest);
                         context.Response.ContentType = serializer.ContentType;
                         MemoryStream memoryStream = new MemoryStream();
                         await serializer.Serialize(rpcResponse, memoryStream);

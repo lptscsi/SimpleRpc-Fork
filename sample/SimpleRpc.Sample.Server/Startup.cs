@@ -26,7 +26,10 @@ namespace SimpleRpc.Sample.Server
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddSimpleRpcServer(new HttpServerTransportOptions { Path = "/rpc" });
+            services.AddSimpleRpcServer(new HttpServerTransportOptions<IFooService> { 
+                Path = "/rpc" ,
+                ServiceName = nameof(IFooService)
+            });
             
             // to make it more interesting - each instance has its number
             services.AddScoped<IFooService>((sp)=> new FooServiceImpl(Interlocked.Increment(ref _counter)));
