@@ -54,7 +54,7 @@ namespace SimpleRpc.Transports.Http.Client
                         throw new RpcException(rpcResponse.Error);
                     }
 
-                    return SerializationHelper.GetResult<T>(rpcRequest, rpcResponse);
+                    return SerializationHelper.UnpackResult<T>(rpcRequest, rpcResponse);
                 }
             }
         }

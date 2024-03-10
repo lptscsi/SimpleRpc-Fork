@@ -1,6 +1,6 @@
 ﻿using SimpleRpc.Serialization.Json;
-using System.Text.Json;
 using System;
+using System.Text.Json;
 
 namespace SimpleRpc.Serialization
 {
@@ -8,7 +8,7 @@ namespace SimpleRpc.Serialization
     {
         public static readonly IMessageSerializer Json = new JsonMessageSerializer();
 
-        public static T GetResult<T>(RpcRequest rpcRequest, RpcResponse rpcResponse)
+        public static T UnpackResult<T>(RpcRequest rpcRequest, RpcResponse rpcResponse)
         {
             if (rpcResponse.Result is JsonElement element)
             {
@@ -30,6 +30,44 @@ namespace SimpleRpc.Serialization
             {
                 return default(T);
             }
+        }
+
+        public static object[] UnpackParameters(object[] parameters, Type[] paramTypes)
+        {
+            // Just as a Guard
+            if (parameters.Length != paramTypes.Length)
+            {
+                throw new ArgumentException("parameters.Length != paramTypes.Length");
+            }
+
+            object[] result = new object[parameters.Length];
+
+            if (result.Length == 0)
+            {
+                return result;
+            }
+
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                object p = parameters[i];
+                Type ptype = paramTypes[i];
+
+                if (ptype == null)
+                {
+                    throw new InvalidOperationException($"Parameter type No:{i} is null");
+                }
+
+                if (p != null && p is JsonElement element)
+                {
+                    result[i] = element.Deserialize(ptype);
+                }
+                else
+                {
+                    result[i] = p;
+                }
+            }
+
+            return result;
         }
     }
 }

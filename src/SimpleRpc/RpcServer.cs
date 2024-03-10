@@ -1,11 +1,11 @@
 ﻿using Fasterflect;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using SimpleRpc.Serialization;
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Reflection;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace SimpleRpc
@@ -92,55 +92,29 @@ namespace SimpleRpc
             Type[] genericArgs = clientSideMethodModel.GenericArguments.Select(p => Type.GetType(p)).ToArray();
             Type[] paramTypes = clientSideMethodModel.ParameterTypes.Select(p => Type.GetType(p)).ToArray();
 
-            try
+            object[] parameters = SerializationHelper.UnpackParameters(request.Parameters, paramTypes);
+
+            var result = resolvedType.CallMethod(
+                genericArgs,
+                methodModel.MethodName,
+                paramTypes,
+                parameters);
+
+            if (result is Task task)
             {
-                if (paramTypes.Length != request.Parameters.Length)
+                await task;
+
+                if (!string.IsNullOrEmpty(clientSideMethodModel.ReturnType))
                 {
-                    throw new InvalidOperationException("ParamTypes.Length != Parameters.Length");
+                    Type returnType = Type.GetType(clientSideMethodModel.ReturnType);
+                    object res = task.GetPropertyValue(nameof(Task<object>.Result));
+                    return res;
                 }
 
-                object[] parameters = new object[request.Parameters.Length];
-
-                for (int i = 0; i < request.Parameters.Length; i++)
-                {
-                    object p = request.Parameters[i];
-                    Type type = paramTypes[i];
-                    if (type == null)
-                    {
-                        throw new InvalidOperationException($"Parameter type No:{i} for Method {methodModel.MethodName} is null");
-                    }
-                    if (p != null && p is JsonElement element)
-                    {
-                        parameters[i] = element.Deserialize(type);
-                    }
-                }
-
-                var result = resolvedType.CallMethod(
-                    genericArgs,
-                    methodModel.MethodName,
-                    paramTypes,
-                    parameters);
-
-                if (result is Task task)
-                {
-                    await task;
-
-                    if (!string.IsNullOrEmpty(clientSideMethodModel.ReturnType))
-                    {
-                        Type returnType = Type.GetType(clientSideMethodModel.ReturnType);
-                        object res = task.GetPropertyValue(nameof(Task<object>.Result));
-                        return res;
-                    }
-
-                    return null;
-                }
-
-                return result;
+                return null;
             }
-            catch (Exception ex)
-            {
-                throw;
-            }
+
+            return result;
         }
     }
 }
