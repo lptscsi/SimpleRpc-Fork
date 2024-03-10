@@ -1,12 +1,10 @@
 ﻿using SimpleRpc.Serialization;
 using SimpleRpc.Transports.Abstractions.Client;
-using System;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -44,17 +42,16 @@ namespace SimpleRpc.Transports.Http.Client
                 {
                     httpResponseMessage.EnsureSuccessStatusCode();
 
-                    var resultSerializer = SerializationHelper.Json;
                     var stream = await httpResponseMessage.Content.ReadAsStreamAsync().ConfigureAwait(false);
 
-                    var rpcResponse = await resultSerializer.Deserialize<RpcResponse>(stream);
+                    var rpcResponse = await _serializer.Deserialize<RpcResponse>(stream);
 
                     if (rpcResponse.Error != null)
                     {
                         throw new RpcException(rpcResponse.Error);
                     }
 
-                    return SerializationHelper.UnpackResult<T>(rpcRequest, rpcResponse);
+                    return _serializer.UnpackResult<T>(rpcRequest, rpcResponse);
                 }
             }
         }
@@ -75,9 +72,8 @@ namespace SimpleRpc.Transports.Http.Client
         protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
         {
             MemoryStream memoryStream = new MemoryStream();
-            _serializer.Serialize(_request, memoryStream);
+            await _serializer.Serialize(_request, memoryStream);
             memoryStream.Position = 0;
-            //string data = UTF8Encoding.UTF8.GetString( memoryStream.ToArray());
             await memoryStream.CopyToAsync(stream);
         }
 

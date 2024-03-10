@@ -86,13 +86,14 @@ namespace SimpleRpc
 
             Type declaringType = methodModel.DeclaringType;
             var resolvedType = serviceProvider.GetRequiredService(declaringType);
+            IMessageSerializer serializer = SerializationHelper.Json; 
 
             // we need this because we need generic parameters which are set on the client side
             MethodModel clientSideMethodModel = request.Method;
             Type[] genericArgs = clientSideMethodModel.GenericArguments.Select(p => Type.GetType(p)).ToArray();
             Type[] paramTypes = clientSideMethodModel.ParameterTypes.Select(p => Type.GetType(p)).ToArray();
 
-            object[] parameters = SerializationHelper.UnpackParameters(request.Parameters, paramTypes);
+            object[] parameters = serializer.UnpackParameters(request.Parameters, paramTypes);
 
             var result = resolvedType.CallMethod(
                 genericArgs,
