@@ -6,14 +6,14 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace SimpleRpc.Transports.Http.Client
 {
-    public class HttpClientTransport : BaseClientTransport
+    public class HttpClientTransport<TService> : BaseClientTransport<TService>
+        where TService : class
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IMessageSerializer _serializer;

@@ -55,7 +55,7 @@ namespace SimpleRpc.Sample.Client
 
             for (int i = 0; i < iterations; ++i)
             {
-               var reslt = await service.ReturnGenericType<string>(list);
+               res2 = await service.ReturnGenericType<string>(list);
             }
 
             var diff = DateTime.Now - startTime;

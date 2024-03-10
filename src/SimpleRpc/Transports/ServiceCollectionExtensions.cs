@@ -11,10 +11,11 @@ namespace SimpleRpc.Transports
 {
     public static class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddSimpleRpcClient(
+        public static IServiceCollection AddSimpleRpcClient<TService>(
             this IServiceCollection services,
             string clientName,
-            HttpClientTransportOptions options)
+            HttpClientTransportOptions<TService> options)
+            where TService : class
         {
             if (string.IsNullOrEmpty(clientName))
             {
@@ -49,7 +50,7 @@ namespace SimpleRpc.Transports
                 return new ClientConfiguration()
                 {
                     Name = clientName,
-                    Transport = new HttpClientTransport(clientName, serializer, sp.GetRequiredService<IHttpClientFactory>())
+                    Transport = new HttpClientTransport<TService>(clientName, serializer, sp.GetRequiredService<IHttpClientFactory>())
                 };
             });
 
@@ -66,8 +67,7 @@ namespace SimpleRpc.Transports
 
             services.TryAddSingleton<T>(sp => {
                 BaseClientTransport clientTransport = sp.GetService<IClientConfigurationManager>().Get(clientName);
-                return RoutableProxy.Create<T>(clientTransport);
-        
+                return RoutableProxy.Create<T>((BaseClientTransport<T>)clientTransport);
              });
 
             return services;

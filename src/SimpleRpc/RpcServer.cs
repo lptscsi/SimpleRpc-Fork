@@ -2,7 +2,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Concurrent;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -13,7 +15,18 @@ namespace SimpleRpc
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger _logger;
-     
+
+        private static ConcurrentDictionary<string, MethodModel> _metadata = new ConcurrentDictionary<string, MethodModel>();
+
+        static RpcServer()
+        {
+            MethodInfo[] methods = typeof(TService).GetMethods();
+            foreach(MethodInfo method in methods)
+            {
+                _metadata.TryAdd(method.Name, new MethodModel(method));
+            }
+        }
+
         public RpcServer(IServiceProvider serviceProvider, ILogger<RpcServer<TService>> logger)
         {
             this._serviceProvider = serviceProvider;
@@ -55,33 +68,53 @@ namespace SimpleRpc
 
         private static async Task<object> InvokeInternal(IServiceProvider serviceProvider, RpcRequest request)
         {
-            MethodModel methodModel = request.Method;
-
+            // We check that the method exists
+            if  (!_metadata.TryGetValue(request.Method.MethodName, out MethodModel methodModel))
+            {
+                throw new InvalidOperationException($"Service does not have a method {request.Method.MethodName}");
+            }
+            // we check that the declaring type is te same what the client has sent
+            if (request.Method.DeclaringType != methodModel.DeclaringType)
+            {
+                throw new InvalidOperationException($"Invalid method parameters for method {methodModel.MethodName}");
+            }
+            // we check that the number of parameters equals what the client has sent
+            if (request.Method.ParameterTypes.Length != methodModel.ParameterTypes.Length)
+            {
+                throw new InvalidOperationException($"Invalid method parameters for method {methodModel.MethodName}");
+            }
+          
             Type declaringType = Type.GetType(methodModel.DeclaringType);
             var resolvedType = serviceProvider.GetRequiredService(declaringType);
 
-            Type[] genericArgs = methodModel.GenericArguments.Select(p => Type.GetType(p)).ToArray();
-            Type[] paramTypes = methodModel.ParameterTypes.Select(p => Type.GetType(p)).ToArray();
-
-            if (paramTypes.Length != request.Parameters.Length)
-            {
-                throw new InvalidOperationException("ParamTypes.Length != Parameters.Length");
-            }
-
-            object[] parameters = new object[request.Parameters.Length];
-
-            for (int i = 0; i < request.Parameters.Length; i++)
-            {
-                object p = request.Parameters[i];
-                Type type = paramTypes[i];
-                if (p != null && p is JsonElement element)
-                {
-                    parameters[i] = element.Deserialize(type);
-                }
-            }
+            // we need this because we need generic parameters which are set on the client side
+            MethodModel clientSideMethodModel = request.Method;
+            Type[] genericArgs = clientSideMethodModel.GenericArguments.Select(p => Type.GetType(p)).ToArray();
+            Type[] paramTypes = clientSideMethodModel.ParameterTypes.Select(p => Type.GetType(p)).ToArray();
 
             try
             {
+                if (paramTypes.Length != request.Parameters.Length)
+                {
+                    throw new InvalidOperationException("ParamTypes.Length != Parameters.Length");
+                }
+
+                object[] parameters = new object[request.Parameters.Length];
+
+                for (int i = 0; i < request.Parameters.Length; i++)
+                {
+                    object p = request.Parameters[i];
+                    Type type = paramTypes[i];
+                    if (type == null)
+                    {
+                        throw new InvalidOperationException();
+                    }
+                    if (p != null && p is JsonElement element)
+                    {
+                        parameters[i] = element.Deserialize(type);
+                    }
+                }
+
                 var result = resolvedType.CallMethod(
                     genericArgs,
                     methodModel.MethodName,

@@ -13,7 +13,7 @@ namespace SimpleRpc.Transports.Abstractions.Client
         { }
 
     
-        public static T Create<T>(BaseClientTransport transport)
+        public static T Create<T>(BaseClientTransport<T> transport)
             where T : class
         {
             if (transport == null)
@@ -42,6 +42,7 @@ namespace SimpleRpc.Transports.Abstractions.Client
         }
     }
 
+
     public abstract class BaseClientTransport : IClientTransport
     {
         public abstract object HandleSync(RpcRequest rpcRequest);
@@ -53,8 +54,8 @@ namespace SimpleRpc.Transports.Abstractions.Client
         public object Invoke(MethodInfo targetMethod, object?[]? args)
         {
             var rpcRequest = new RpcRequest
-            {
-                Method = new MethodModel(targetMethod, targetMethod.GetGenericArguments()),
+            { 
+                Method = new MethodModel(targetMethod),
                 Parameters = args
             };
 
@@ -63,10 +64,10 @@ namespace SimpleRpc.Transports.Abstractions.Client
                 //Task<T>
                 if (targetMethod.ReturnType.IsGenericType)
                 {
-                      return this.CallMethod(
-                        targetMethod.ReturnType.GetGenericArguments(), 
-                        nameof(HandleAsyncWithResult),
-                        rpcRequest);
+                    return this.CallMethod(
+                      targetMethod.ReturnType.GetGenericArguments(),
+                      nameof(HandleAsyncWithResult),
+                      rpcRequest);
                 }
                 else
                 {
@@ -79,5 +80,10 @@ namespace SimpleRpc.Transports.Abstractions.Client
                 return HandleSync(rpcRequest);
             }
         }
+    }
+
+    public abstract class BaseClientTransport<TService> : BaseClientTransport
+    {
+     
     }
 }

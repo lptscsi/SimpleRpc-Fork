@@ -13,7 +13,7 @@ namespace SimpleRpc.Sample.Client
         static ServiceProvider AddServices()
         {
             var sc = new ServiceCollection();
-            sc.AddSimpleRpcClient("sample", new HttpClientTransportOptions
+            sc.AddSimpleRpcClient("sample", new HttpClientTransportOptions<IFooService>
             {
                 Url = "http://127.0.0.1:5000/rpc"
             });

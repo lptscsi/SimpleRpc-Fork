@@ -3,7 +3,8 @@ using System.Collections.Generic;
 
 namespace SimpleRpc.Transports.Http.Client
 {
-    public class HttpClientTransportOptions : IClientTransportOptions<HttpClientTransport>
+    public class HttpClientTransportOptions<TService> : IClientTransportOptions<HttpClientTransport<TService>>
+        where TService : class
     {
         public string Url { get; set; }
 
