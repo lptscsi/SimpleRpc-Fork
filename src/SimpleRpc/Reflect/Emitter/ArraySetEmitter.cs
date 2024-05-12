@@ -1,5 +1,5 @@
 ﻿#region License
-// Copyright 2010 Buu Nguyen, Morten Mertner
+// Copyright © 2010 Buu Nguyen, Morten Mertner
 // 
 // Licensed under the Apache License, Version 2.0 (the "License"); 
 // you may not use this file except in compliance with the License. 
@@ -17,36 +17,48 @@
 #endregion
 
 using System;
-using System.Reflection;
 using System.Reflection.Emit;
 
 namespace Fasterflect.Emitter
 {
-    internal class ArraySetEmitter : BaseEmitter
-    {
-        public ArraySetEmitter( Type targetType )
-            : base(new CallInfo(targetType, null, Flags.InstanceAnyVisibility, MemberTypes.Method, Constants.ArraySetterName,
-                                     new[] { typeof(int), targetType.GetElementType() }, null, false))
-        {
-        }
+	internal class ArraySetEmitter : BaseEmitter
+	{
+		public ArraySetEmitter(Type targetType)
+		{
+			TargetType = targetType;
+		}
 
-        protected internal override DynamicMethod CreateDynamicMethod()
-        {
-            return CreateDynamicMethod( Constants.ArraySetterName, CallInfo.TargetType, null,
-                                        new[] { Constants.ObjectType, Constants.IntType, Constants.ObjectType } );
-        }
+		protected internal override DynamicMethod CreateDynamicMethod()
+		{
+			return CreateDynamicMethod("set_ArrayIndex", TargetType, null,	new[] { typeof(object), typeof(int), typeof(object) });
+		}
 
-        protected internal override Delegate CreateDelegate()
-        {
-            Type elementType = CallInfo.TargetType.GetElementType();
-            Generator.ldarg_0 // load array
-                .castclass( CallInfo.TargetType ) // (T[])array
-                .ldarg_1 // load index
-                .ldarg_2 // load value
-                .CastFromObject( elementType ) // (unbox | cast) value
-                .stelem( elementType ) // array[index] = value
-                .ret();
-            return Method.CreateDelegate( typeof(ArrayElementSetter) );
-        }
-    }
+		protected internal override Delegate CreateDelegate()
+		{
+			/*
+			Type elementType = TargetType.GetElementType();
+			Generator
+				.ldarg_0                       // load array
+				.castclass(TargetType)         // (T[])array
+				.ldarg_1                       // load index
+				.ldarg_2                       // load value
+				.CastFromObject(elementType)   // (unbox | cast) value
+				.stelem(elementType)           // array[index] = value
+				.ret();
+			return Method.CreateDelegate(typeof(ArrayElementSetter));
+			*/
+
+			Type elementType = TargetType.GetElementType();
+			Gen.Emit(OpCodes.Ldarg_0);
+			Gen.Emit(OpCodes.Castclass, TargetType);
+			Gen.Emit(OpCodes.Ldarg_1);
+			Gen.Emit(OpCodes.Ldarg_2);
+			if (elementType == typeof(object)) {
+				Gen.Emit(elementType.IsValueType ? OpCodes.Unbox_Any : OpCodes.Castclass, elementType);
+			}
+			Gen.Emit(OpCodes.Stelem, elementType);
+			Gen.Emit(OpCodes.Ret);
+			return Method.CreateDelegate(typeof(ArrayElementSetter));
+		}
+	}
 }

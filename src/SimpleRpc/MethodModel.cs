@@ -1,75 +1,76 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using MessagePack;
+using System.Threading.Tasks;
 
 namespace SimpleRpc
 {
-    [MessagePackObject]
-    public class MethodModel
+    public record MethodModel
     {
-        [SerializationConstructor]
-        public MethodModel(Type declaringType, string methodName, Type[] parameterTypes, Type[] genericArguments)
+        public MethodModel() { }
+
+        private static string GetTypeName(Type type)
         {
-            DeclaringType = declaringType;
-            MethodName = methodName;
-            ParameterTypes = parameterTypes;
-            GenericArguments = genericArguments;
+            return $"{type.FullName}, {type.Assembly.GetName().Name }";
         }
 
-        public MethodModel(MethodInfo method, Type[] genericArguments) :
+        private static string GetReturnType(Type returnType)
+        {
+            if (typeof(Task).IsAssignableFrom(returnType))
+            {
+                if (returnType.IsGenericType)
+                {
+                    return GetTypeName(returnType.GetGenericArguments()[0]);
+                }
+                else
+                {
+                    return string.Empty;
+                }
+            }
+            else
+            {
+                if (returnType == typeof(void))
+                {
+                    return String.Empty;
+                }
+                else
+                {
+                    return GetTypeName(returnType);
+                }
+            }
+
+        }
+
+        public MethodModel(Type declaringType, string methodName, Type[] parameterTypes, Type returnType, Type[] genericArguments)
+        {
+            DeclaringType = GetTypeName(declaringType);
+
+            MethodName = methodName;
+            ParameterTypes = parameterTypes.Select(p => GetTypeName(p)).ToArray();
+            ReturnType = GetReturnType(returnType);
+
+            GenericArguments = genericArguments.Select(p => GetTypeName(p)).ToArray();
+        }
+
+        public MethodModel(MethodInfo method) :
             this(
                 method.DeclaringType,
                 method.Name,
                 method.GetParameters().Select(t => t.ParameterType).ToArray(),
-                genericArguments)
+                method.ReturnType,
+                method.GetGenericArguments())
         {
         }
 
-        [Key(0)]
-        public Type DeclaringType { get; }
+        public string DeclaringType { get; init; }
 
-        [Key(1)]
-        public string MethodName { get; }
+        public string MethodName { get; init; }
 
-        [Key(2)]
-        public Type[] ParameterTypes { get; }
+        public string[] ParameterTypes { get; init; }
 
-        [Key(3)]
-        public Type[] GenericArguments { get; }
+        public string[] GenericArguments { get; init; }
+
+        public string ReturnType { get; init; }
     }
 
-    public sealed class MethodModelEqualityComparer : IEqualityComparer<MethodModel>
-    {
-        public static readonly MethodModelEqualityComparer Instance = new MethodModelEqualityComparer();
-
-        public bool Equals(MethodModel x, MethodModel y)
-        {
-            if (ReferenceEquals(x, y))
-                return true;
-            if (ReferenceEquals(x, null))
-                return false;
-            if (ReferenceEquals(y, null))
-                return false;
-            if (x.GetType() != y.GetType())
-                return false;
-            return x.DeclaringType == y.DeclaringType &&
-                   string.Equals(x.MethodName, y.MethodName) &&
-                   ArrayEqualityComparer<Type>.Instance.Equals(x.ParameterTypes, y.ParameterTypes) &&
-                   ArrayEqualityComparer<Type>.Instance.Equals(x.GenericArguments, y.GenericArguments);
-        }
-
-        public int GetHashCode(MethodModel obj)
-        {
-            unchecked
-            {
-                var hashCode = (obj.DeclaringType != null ? obj.DeclaringType.GetHashCode() : 0);
-                hashCode = (hashCode * 397) ^ (obj.MethodName != null ? obj.MethodName.GetHashCode() : 0);
-                hashCode = (hashCode * 397) ^ (obj.ParameterTypes != null ? ArrayEqualityComparer<Type>.Instance.GetHashCode(obj.ParameterTypes) : 0);
-                hashCode = (hashCode * 397) ^ (obj.GenericArguments != null ? ArrayEqualityComparer<Type>.Instance.GetHashCode(obj.GenericArguments) : 0);
-                return hashCode;
-            }
-        }
-    }
 }

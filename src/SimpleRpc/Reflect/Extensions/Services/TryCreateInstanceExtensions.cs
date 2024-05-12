@@ -1,5 +1,5 @@
 #region License
-// Copyright 2010 Buu Nguyen, Morten Mertner
+// Copyright © 2010 Buu Nguyen, Morten Mertner
 // 
 // Licensed under the Apache License, Version 2.0 (the "License"); 
 // you may not use this file except in compliance with the License. 
@@ -19,16 +19,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using Fasterflect.Caching;
-using Fasterflect.Probing;
 
-namespace Fasterflect
+namespace Fasterflect.Extensions.Services
 {
 	/// <summary>
 	/// Extension methods for creating object instances when you do not know which constructor to call.
 	/// </summary>
-	public static class TryCreateInstanceExtensions
+	internal static class TryCreateInstanceExtensions
 	{
 		/// <summary>
 		/// This field is used to cache information on objects used as parameters for object construction, which
@@ -47,18 +44,17 @@ namespace Fasterflect
 		/// considered compatible, such as between strings and enums or numbers, Guids and byte[], etc.
 		/// </summary>
 		/// <returns>An instance of <paramref name="type"/>.</returns>
-		public static object TryCreateInstance( this Type type, object sample )
+		public static object TryCreateInstance(this Type type, object sample)
 		{
 			Type sourceType = sample.GetType();
-			SourceInfo sourceInfo = sourceInfoCache.Get( sourceType );
-			if( sourceInfo == null )
-			{
-				sourceInfo = SourceInfo.CreateFromType( sourceType );
-				sourceInfoCache.Insert( sourceType, sourceInfo );
+			SourceInfo sourceInfo = sourceInfoCache.Get(sourceType);
+			if (sourceInfo == null) {
+				sourceInfo = SourceInfo.CreateFromType(sourceType);
+				sourceInfoCache.Insert(sourceType, sourceInfo);
 			}
-			object[] paramValues = sourceInfo.GetParameterValues( sample );
-			MethodMap map = MapFactory.PrepareInvoke( type, sourceInfo.ParamNames, sourceInfo.ParamTypes, paramValues );
-			return map.Invoke( paramValues );
+			object[] paramValues = sourceInfo.GetParameterValues(sample);
+			MethodMap map = MapFactory.PrepareInvoke(type, sourceInfo.ParamNames, sourceInfo.ParamTypes, paramValues);
+			return map.Invoke(paramValues);
 		}
 
 		/// <summary>
@@ -71,12 +67,12 @@ namespace Fasterflect
 		/// considered compatible, such as between strings and enums or numbers, Guids and byte[], etc.
 		/// </summary>
 		/// <returns>An instance of <paramref name="type"/>.</returns>
-		public static object TryCreateInstance( this Type type, IDictionary<string, object> parameters )
+		public static object TryCreateInstance(this Type type, IDictionary<string, object> parameters)
 		{
 			bool hasParameters = parameters != null && parameters.Count > 0;
-			string[] names = hasParameters ? parameters.Keys.ToArray() : new string[ 0 ];
-			object[] values = hasParameters ? parameters.Values.ToArray() : new object[ 0 ];
-			return type.TryCreateInstance( names, values );
+			string[] names = hasParameters ? parameters.Keys.ToArray() : Constants.EmptyStringArray;
+			object[] values = hasParameters ? parameters.Values.ToArray() : Constants.EmptyObjectArray;
+			return type.TryCreateInstance(names, values);
 		}
 
 		/// <summary>
@@ -93,21 +89,19 @@ namespace Fasterflect
 		/// <param name="parameterNames">The names of the supplied parameters.</param>
 		/// <param name="parameterValues">The values of the supplied parameters.</param>
 		/// <returns>An instance of <paramref name="type"/>.</returns>
-		public static object TryCreateInstance( this Type type, string[] parameterNames, object[] parameterValues )
+		public static object TryCreateInstance(this Type type, string[] parameterNames, object[] parameterValues)
 		{
-			var names = parameterNames ?? new string[ 0 ];
-			var values = parameterValues ?? new object[ 0 ];
-			if( names.Length != values.Length )
-			{
-				throw new ArgumentException( "Mismatching name and value arrays (must be of identical length)." );
+			string[] names = parameterNames ?? Constants.EmptyStringArray;
+			object[] values = parameterValues ?? Constants.EmptyObjectArray;
+			if (names.Length != values.Length) {
+				throw new ArgumentException("Mismatching name and value arrays (must be of identical length).");
 			}
-			var parameterTypes = new Type[ names.Length ];
-			for( int i = 0; i < names.Length; i++ )
-			{
-				object value = values[ i ];
-				parameterTypes[ i ] = value != null ? value.GetType() : null;
+			Type[] parameterTypes = new Type[names.Length];
+			for (int i = 0; i < names.Length; ++i) {
+				object value = values[i];
+				parameterTypes[i] = value?.GetType();
 			}
-			return type.TryCreateInstance( names, parameterTypes, values );
+			return type.TryCreateInstance(names, parameterTypes, values);
 		}
 
 		/// <summary>
@@ -123,20 +117,19 @@ namespace Fasterflect
 		/// <param name="parameterTypes">The types of the supplied parameters.</param>
 		/// <param name="parameterValues">The values of the supplied parameters.</param>
 		/// <returns>An instance of <paramref name="type"/>.</returns>
-		public static object TryCreateInstance( this Type type, string[] parameterNames, Type[] parameterTypes,
-												object[] parameterValues )
+		public static object TryCreateInstance(this Type type, string[] parameterNames, Type[] parameterTypes,
+												object[] parameterValues)
 		{
-			var names = parameterNames ?? new string[ 0 ];
-			var types = parameterTypes ?? new Type[ 0 ];
-			var values = parameterValues ?? new object[ 0 ];
-			if( names.Length != values.Length || names.Length != types.Length )
-			{
-				throw new ArgumentException( "Mismatching name, type and value arrays (must be of identical length)." );
+			string[] names = parameterNames ?? Constants.EmptyStringArray;
+			Type[] types = parameterTypes ?? Type.EmptyTypes;
+			object[] values = parameterValues ?? Constants.EmptyObjectArray;
+			if (names.Length != values.Length || names.Length != types.Length) {
+				throw new ArgumentException("Mismatching name, type and value arrays (must be of identical length).");
 			}
-			MethodMap map = MapFactory.PrepareInvoke( type, names, types, values );
-			return map.Invoke( values );
+			MethodMap map = MapFactory.PrepareInvoke(type, names, types, values);
+			return map.Invoke(values);
 		}
 
-		#endregion
+#endregion
 	}
 }

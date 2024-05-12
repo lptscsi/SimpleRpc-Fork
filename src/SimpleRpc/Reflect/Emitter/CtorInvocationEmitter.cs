@@ -1,6 +1,6 @@
 ﻿#region License
 
-// Copyright 2010 Buu Nguyen, Morten Mertner
+// Copyright © 2010 Buu Nguyen, Morten Mertner
 // 
 // Licensed under the Apache License, Version 2.0 (the "License"); 
 // you may not use this file except in compliance with the License. 
@@ -26,62 +26,52 @@ namespace Fasterflect.Emitter
 {
 	internal class CtorInvocationEmitter : InvocationEmitter
 	{
-		public CtorInvocationEmitter(ConstructorInfo ctorInfo, Flags bindingFlags)
-			: this(ctorInfo.DeclaringType, bindingFlags, ctorInfo.GetParameters().ToTypeArray(), ctorInfo) { }
-
-		public CtorInvocationEmitter(Type targetType, Flags bindingFlags, Type[] paramTypes)
-			: this(targetType, bindingFlags, paramTypes, null) { }
-
-		private CtorInvocationEmitter(Type targetType, Flags flags, Type[] parameterTypes, ConstructorInfo ctorInfo)
-			: base(new CallInfo(targetType, null, flags, MemberTypes.Constructor, targetType.Name, parameterTypes, ctorInfo, true))
+		public CtorInvocationEmitter(Type type, ConstructorInfo ctor)
+			: base(type, ctor)
 		{
 		}
-		
+
 		protected internal override DynamicMethod CreateDynamicMethod()
 		{
-			return CreateDynamicMethod("ctor", CallInfo.TargetType, Constants.ObjectType, new[] { Constants.ObjectType });
+			return CreateDynamicMethod("ctor", TargetType, typeof(object), Constants.ArrayOfObjectType);
 		}
 
 		protected internal override Delegate CreateDelegate()
 		{
-			if (CallInfo.IsTargetTypeStruct && CallInfo.HasNoParam) // no-arg struct needs special initialization
-			{
-				Generator.DeclareLocal( CallInfo.TargetType );      // TargetType tmp
-				Generator.ldloca_s(0)                               // &tmp
-						 .initobj( CallInfo.TargetType )            // init_obj(&tmp)
-						 .ldloc_0.end();                            // load tmp
+			if (IsTargetTypeStruct && HasNoParam) { // no-arg struct needs special initialization
+				Gen.DeclareLocal(TargetType); // TargetType tmp
+				Gen.Emit(OpCodes.Ldloca_S, (byte)0);  // &tmp
+				Gen.Emit(OpCodes.Initobj, TargetType); // init_obj(&tmp)
+				Gen.Emit(OpCodes.Ldloc_0); // load tmp
 			}
-			else if (CallInfo.TargetType.IsArray)
-			{
-				Generator.ldarg_0                                           // load args[] (method arguments)
-						 .ldc_i4_0                                          // load 0
-						 .ldelem_ref                                        // load args[0] (length)
-						 .unbox_any( typeof(int) )                          // unbox stack
-						 .newarr( CallInfo.TargetType.GetElementType() );   // new T[args[0]]
+			else if (TargetType.IsArray) {
+				Gen.Emit(OpCodes.Ldarg_0); // load args[] (method arguments)
+				Gen.Emit(OpCodes.Ldc_I4_0); // load 0
+				Gen.Emit(OpCodes.Ldelem_Ref); // load args[0] (length)
+				Gen.Emit(OpCodes.Unbox_Any, typeof(int)); // unbox stack
+				Gen.Emit(OpCodes.Newarr, TargetType.GetElementType()); // new T[args[0]]
 			}
-			else
-			{
-				ConstructorInfo ctorInfo = LookupUtils.GetConstructor(CallInfo);
+			else {
+				ConstructorInfo ctorInfo = (ConstructorInfo) MemberInfo;
 				byte startUsableLocalIndex = 0;
-				if (CallInfo.HasRefParam)
-				{
+				if (HasRefParam) {
 					startUsableLocalIndex = CreateLocalsForByRefParams(0, ctorInfo); // create by_ref_locals from argument array
-					Generator.DeclareLocal(CallInfo.TargetType);                     // TargetType tmp;
+					Gen.DeclareLocal(TargetType); // TargetType tmp;
 				}
-				
-				PushParamsOrLocalsToStack(0);               // push arguments and by_ref_locals
-				Generator.newobj(ctorInfo);                 // ctor (<stack>)
-
-				if (CallInfo.HasRefParam)
-				{
-					Generator.stloc(startUsableLocalIndex); // tmp = <stack>;
-					AssignByRefParamsToArray(0);            // store by_ref_locals back to argument array
-					Generator.ldloc(startUsableLocalIndex); // tmp
+				PushParamsOrLocalsToStack(0); // push arguments and by_ref_locals
+				Gen.Emit(OpCodes.Newobj, ctorInfo); // ctor (<stack>)
+				if (HasRefParam) {
+					stloc_s(startUsableLocalIndex); // tmp = <stack>;
+					AssignByRefParamsToArray(0);    // store by_ref_locals back to argument array
+					Gen.Emit(OpCodes.Ldloc, (short)startUsableLocalIndex); // tmp
 				}
 			}
-			Generator.boxIfValueType(CallInfo.TargetType)
-					 .ret();                                // return (box)<stack>;
-			return Method.CreateDelegate(typeof (ConstructorInvoker));
+			if (TargetType.IsValueType)
+				Gen.Emit(OpCodes.Box, TargetType);
+			Gen.Emit(OpCodes.Ret); // return (box)<stack>;
+			return Method.CreateDelegate(typeof(ConstructorInvoker));
 		}
 	}
 }
+ 
+ 

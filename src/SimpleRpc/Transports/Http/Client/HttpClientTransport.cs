@@ -1,16 +1,16 @@
 ﻿using SimpleRpc.Serialization;
 using SimpleRpc.Transports.Abstractions.Client;
+using System;
 using System.IO;
-using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace SimpleRpc.Transports.Http.Client
 {
-    public class HttpClientTransport : BaseClientTransport
+    public class HttpClientTransport<TService> : BaseClientTransport<TService>
+        where TService : class
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IMessageSerializer _serializer;
@@ -41,46 +41,36 @@ namespace SimpleRpc.Transports.Http.Client
                 {
                     httpResponseMessage.EnsureSuccessStatusCode();
 
-                    var resultSerializer = SerializationHelper.GetByContentType(httpResponseMessage.Content.Headers.ContentType.MediaType);
                     var stream = await httpResponseMessage.Content.ReadAsStreamAsync().ConfigureAwait(false);
 
-                    var result = (RpcResponse)resultSerializer.Deserialize(stream, typeof(RpcResponse));
+                    string responseMediaType = httpResponseMessage.Content.Headers.ContentType.MediaType;
 
-                    if (result.Error != null)
+                    if (_serializer.ContentType == responseMediaType)
                     {
-                        throw new RpcException(result.Error);
-                    }
+                        var rpcResponse = await _serializer.Deserialize<RpcResponse>(stream);
 
-                    return (T)result.Result;
+                        if (rpcResponse.Error != null)
+                        {
+                            throw new RpcException(rpcResponse.Error);
+                        }
+
+                        return _serializer.UnpackResult<T>(rpcRequest, rpcResponse);
+                    }
+                    else if (responseMediaType == System.Net.Mime.MediaTypeNames.Application.Octet 
+                        &&  (typeof(T) == typeof(object) || typeof(Stream).IsAssignableFrom(typeof(T)))
+                        )
+                    {
+                        MemoryStream memoryStream = new MemoryStream();
+                        await stream.CopyToAsync(memoryStream);
+                        memoryStream.Seek(0, SeekOrigin.Begin);
+                        return (T)(object)memoryStream;
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Unexpected response type: {responseMediaType}");
+                    }
                 }
             }
         }
     }
-
-    internal class SerializableContent : HttpContent
-    {
-        private readonly IMessageSerializer _serializer;
-        private readonly RpcRequest _request;
-
-        public SerializableContent(IMessageSerializer serializer, RpcRequest request)
-        {
-            _serializer = serializer;
-            _request = request;
-            Headers.ContentType = new MediaTypeHeaderValue(_serializer.ContentType);
-        }
-
-        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
-        {
-            var bufStream = new BufferedStream(stream, 1024);
-            _serializer.Serialize(_request, bufStream, typeof(RpcRequest));
-            await bufStream.FlushAsync();
-        }
-
-        protected override bool TryComputeLength(out long length)
-        {
-            length = -1;
-            return false;
-        }
-    }
-
 }

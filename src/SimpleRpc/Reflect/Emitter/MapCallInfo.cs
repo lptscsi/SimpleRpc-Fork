@@ -1,5 +1,5 @@
 ﻿#region License
-// Copyright 2010 Buu Nguyen, Morten Mertner
+// Copyright © 2010 Buu Nguyen, Morten Mertner
 // 
 // Licensed under the Apache License, Version 2.0 (the "License"); 
 // you may not use this file except in compliance with the License. 
@@ -17,6 +17,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
@@ -27,62 +28,64 @@ namespace Fasterflect.Emitter
 	/// Stores all necessary information to construct a dynamic method for member mapping.
 	/// </summary>
 	[DebuggerStepThrough]
-	internal class MapCallInfo : CallInfo
+	internal class MapCallInfo
 	{
-		public Type SourceType { get; private set; }
-		public MemberTypes SourceMemberTypes { get; private set; }
-		public MemberTypes TargetMemberTypes { get; private set; }
-		public string[] Names { get; private set; }
+		public Type TargetType { get; }
+		public Type SourceType { get; }
+		public IList<string> Sources { get; }
+		public IList<string> Targets { get; }
+		public FasterflectFlags Flags { get; }
 
-		public MapCallInfo( Type targetType, Type[] genericTypes, Flags bindingFlags, MemberTypes memberTypes, string name, Type[] parameterTypes, MemberInfo memberInfo, bool isReadOperation, Type sourceType, MemberTypes sourceMemberTypes, MemberTypes targetMemberTypes, string[] names ) : base( targetType, genericTypes, bindingFlags, memberTypes, name, parameterTypes, memberInfo, isReadOperation )
+		public MapCallInfo(Type sourceType, Type targetType, IList<MemberInfo> sources, IList<MemberInfo> targets)
+			: this(sourceType, targetType, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, sources.Select(m => m.Name).ToArray(), targets.Select(m => m.Name).ToArray())
 		{
-			SourceType = sourceType;
-			SourceMemberTypes = sourceMemberTypes;
-			TargetMemberTypes = targetMemberTypes;
-			Names = names;
 		}
 
-		public override bool Equals( object obj )
+		public MapCallInfo(Type sourceType, Type targetType, FasterflectFlags flags, IList<string> sourceNames, IList<string> targetNames)
 		{
-			var other = obj as MapCallInfo;
-			if( other == null )
-			{
+			SourceType = sourceType;
+			TargetType = targetType;
+			Sources = sourceNames;
+			Targets = targetNames ?? sourceNames;
+			Flags = flags;
+		}
+
+		public override bool Equals(object obj)
+		{
+			if (!(obj is MapCallInfo other)) {
 				return false;
 			}
-			if( ! base.Equals( obj ) )
-			{
+			if (other.SourceType != SourceType
+				|| other.TargetType != TargetType
+				|| other.Sources.Count != Sources.Count
+				|| other.Flags != Flags
+				|| other.Targets.Count != Targets.Count) {
 				return false;
 			}
-			if( other.SourceType != SourceType ||
-				other.SourceMemberTypes != SourceMemberTypes ||
-				other.TargetMemberTypes != TargetMemberTypes ||
-				(other.Names == null && Names != null) ||
-				(other.Names != null && Names == null) ||
-				(other.Names != null && Names != null && other.Names.Length != Names.Length) )
-			{
-				return false;
+			for (int i = 0, count = Sources.Count; i < count; ++i) {
+				if (!string.Equals(Sources[i], other.Sources[i]))
+					return false;
 			}
-			if( other.Names != null && Names != null )
-			{
-				for( int i = 0; i < Names.Length; i++ )
-				{
-					if( Names[ i ] != other.Names[ i ] )
-					{
-						return false;
-					}
-				}
+			for (int i = 0, count = Targets.Count; i < count; ++i) {
+				if (!string.Equals(Targets[i], other.Targets[i]))
+					return false;
 			}
 			return true;
 		}
 
 		public override int GetHashCode()
 		{
-			int hash = base.GetHashCode() + SourceType.GetHashCode() * SourceMemberTypes.GetHashCode() * TargetMemberTypes.GetHashCode();
-			for( int i = 0; i < Names.Length; i++ )
-			{
-				hash += Names[ i ].GetHashCode() * (i+1);
+			int hashCode = 167991888;
+			hashCode = hashCode * -1521134295 + TargetType.GetHashCode();
+			hashCode = hashCode * -1521134295 + SourceType.GetHashCode();
+			hashCode = hashCode * -1521134295 + Flags.GetHashCode();
+			for (int i = 0, count = Sources.Count; i < count; ++i) {
+				hashCode = hashCode * -1521134295 + Sources[i].GetHashCode();
 			}
-			return hash;
-		}        
+			for (int i = 0, count = Targets.Count; i < count; ++i) {
+				hashCode = hashCode * -1521134295 + Targets[i].GetHashCode();
+			}
+			return hashCode;
+		}
 	}
 }

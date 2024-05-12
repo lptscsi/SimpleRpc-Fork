@@ -1,6 +1,6 @@
 ﻿#region License
 
-// Copyright 2010 Buu Nguyen, Morten Mertner
+// Copyright © 2010 Buu Nguyen, Morten Mertner
 // 
 // Licensed under the Apache License, Version 2.0 (the "License"); 
 // you may not use this file except in compliance with the License. 
@@ -21,85 +21,64 @@
 using System;
 using System.Reflection;
 using System.Reflection.Emit;
+using Fasterflect.Extensions;
 
 namespace Fasterflect.Emitter
 {
 	internal class MemberSetEmitter : BaseEmitter
 	{
-		public MemberSetEmitter(MemberInfo memberInfo, Flags bindingFlags)
-			: this(memberInfo.DeclaringType, bindingFlags, memberInfo.MemberType, memberInfo.Name, memberInfo)
+		public MemberSetEmitter(MemberInfo memberInfo)
 		{
+			MemberInfo = memberInfo;
+			if (memberInfo is PropertyInfo property) {
+				IsStatic = (property.GetGetMethod(true) ?? property.GetSetMethod(true)).IsStatic;
+			}
+			else {
+				FieldInfo field = (FieldInfo)memberInfo;
+				IsStatic = field.IsStatic;
+			}
+			TargetType = MemberInfo.DeclaringType;
 		}
 
-		public MemberSetEmitter(Type targetType, Flags bindingFlags, MemberTypes memberType, string fieldOrProperty)
-			: this(targetType, bindingFlags, memberType, fieldOrProperty, null)
-		{
-		}
-
-		private MemberSetEmitter(Type targetType, Flags bindingFlags, MemberTypes memberType, string fieldOrProperty, MemberInfo memberInfo)
-			: base(new CallInfo(targetType, null, bindingFlags, memberType, fieldOrProperty, Constants.ArrayOfObjectType, memberInfo, false))
-		{
-		}
-		internal MemberSetEmitter(CallInfo callInfo) : base(callInfo)
-		{
-		}
+		public MemberInfo MemberInfo { get; }
 
 		protected internal override DynamicMethod CreateDynamicMethod()
 		{
-			return CreateDynamicMethod("setter", CallInfo.TargetType, null, new[] { Constants.ObjectType, Constants.ObjectType });
+			return CreateDynamicMethod("setter", TargetType, null, new[] { typeof(object), typeof(object) });
 		}
 
 		protected internal override Delegate CreateDelegate()
 		{
-			MemberInfo member = CallInfo.MemberInfo;
-			if( member == null )
-			{
-				member = LookupUtils.GetMember( CallInfo );
-				CallInfo.IsStatic = member.IsStatic();
-			}
-			bool handleInnerStruct = CallInfo.ShouldHandleInnerStruct;
-
-			if( CallInfo.IsStatic )
-			{
-				Generator.ldarg_1.end();							// load value-to-be-set
-			}
-			else 
-			{
-				Generator.ldarg_0.end();							// load arg-0 (this)
-				if (handleInnerStruct)
-				{
-					Generator.DeclareLocal(CallInfo.TargetType);    // TargetType tmpStr
-					LoadInnerStructToLocal(0);                      // tmpStr = ((ValueTypeHolder)this)).Value;
-					Generator.ldarg_1.end();                        // load value-to-be-set;
+			bool handleInnerStruct = ShouldHandleInnerStruct;
+			if (!IsStatic) {
+				Gen.Emit(OpCodes.Ldarg_0);        // load arg-0 (this)            
+				if (handleInnerStruct) {
+					Gen.DeclareLocal(TargetType); // TargetType tmpStr
+					LoadInnerStructToLocal(0);    // tmpStr = ((ValueTypeHolder)this)).Value;          
 				}
-				else
-				{
-					Generator.castclass( CallInfo.TargetType )      // (TargetType)this
-						.ldarg_1.end();								// load value-to-be-set;
+				else {
+					Gen.Emit(OpCodes.Castclass, TargetType); // (TargetType)this
 				}
 			}
+			Gen.Emit(OpCodes.Ldarg_1);               // load value-to-be-set;   
 
-			Generator.CastFromObject( member.Type() );				// unbox | cast value-to-be-set
-			if (member.MemberType == MemberTypes.Field)
-			{
-				var field = member as FieldInfo;
-				Generator.stfld(field.IsStatic, field);				// (this|tmpStr).field = value-to-be-set;
+			Type type = MemberInfo.Type();
+			if (type != typeof(object)) {
+				Gen.Emit(type.IsValueType ? OpCodes.Unbox_Any : OpCodes.Castclass, type);
 			}
-			else
-			{
-				var prop = member as PropertyInfo;
-				MethodInfo setMethod = LookupUtils.GetPropertySetMethod(prop, CallInfo);
-				Generator.call(setMethod.IsStatic || CallInfo.IsTargetTypeStruct, setMethod); // (this|tmpStr).set_Prop(value-to-be-set);
+			if (MemberInfo is FieldInfo field) {
+				Gen.Emit(field.IsStatic ? OpCodes.Stsfld : OpCodes.Stfld, field); // (this|tmpStr).field = value-to-be-set;
 			}
-
-			if (handleInnerStruct)
-			{
+			else {
+				PropertyInfo prop = (PropertyInfo) MemberInfo;
+				MethodInfo setMethod = prop.GetSetMethod(true);
+				Gen.Emit(setMethod.IsStatic || IsTargetTypeStruct ? OpCodes.Call : OpCodes.Callvirt, setMethod); // (this|tmpStr).set_Prop(value-to-be-set);
+			}
+			if (handleInnerStruct) {
 				StoreLocalToInnerStruct(0); // ((ValueTypeHolder)this)).Value = tmpStr
 			}
-
-			Generator.ret();
-
-			return Method.CreateDelegate(typeof (MemberSetter));
+			Gen.Emit(OpCodes.Ret);
+			return Method.CreateDelegate(typeof(MemberSetter));
 		}
 	}
 }

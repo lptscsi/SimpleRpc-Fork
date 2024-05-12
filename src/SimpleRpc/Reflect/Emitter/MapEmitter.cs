@@ -1,5 +1,5 @@
 ﻿#region License
-// Copyright 2010 Buu Nguyen, Morten Mertner
+// Copyright © 2010 Buu Nguyen, Morten Mertner
 // 
 // Licensed under the Apache License, Version 2.0 (the "License"); 
 // you may not use this file except in compliance with the License. 
@@ -21,114 +21,114 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using Fasterflect.Extensions;
 
 namespace Fasterflect.Emitter
 {
 	internal class MapEmitter : BaseEmitter
 	{
-		private readonly Type sourceType;
-		private readonly MemberTypes sourceMemberTypes;
-		private readonly MemberTypes targetMemberTypes;
-		private readonly string[] names;
+		protected Type SourceType { get; }
+		protected IList<MemberInfo> Sources { get; private set; }
+		protected IList<MemberInfo> Targets { get; private set; }
 
-		public MapEmitter(Type sourceType, Type targetType, MemberTypes sourceMemberTypes, MemberTypes targetMemberTypes,
-						   Flags bindingFlags, params string[] names)
-			: base(new MapCallInfo(targetType, null, 
-				// Auto-apply IgnoreCase if we're mapping from one membertype to another
-				Flags.SetIf(bindingFlags, Flags.IgnoreCase, (sourceMemberTypes & targetMemberTypes) != sourceMemberTypes), 
-				MemberTypes.Custom, 
-				"Fasterflect_Map", 
-				Type.EmptyTypes, 
-				null,
-				false, 
-				sourceType, 
-				sourceMemberTypes, 
-				targetMemberTypes, 
-				names))
+		public MapEmitter(Type sourceType, Type targetType, IList<MemberInfo> sources, IList<MemberInfo> targets)
 		{
-			this.sourceType = sourceType;
-			this.sourceMemberTypes = sourceMemberTypes;
-			this.targetMemberTypes = targetMemberTypes;
-			this.names = names;
+			TargetType = targetType;
+			SourceType = sourceType;
+			Sources = sources;
+			Targets = targets;
+		}
+
+		public MapEmitter(MapCallInfo callInfo)
+		{
+			TargetType = callInfo.TargetType;
+			SourceType = callInfo.SourceType;
+			StringComparison comparison = (callInfo.Flags & BindingFlags.IgnoreCase) != 0
+				? StringComparison.OrdinalIgnoreCase
+				: StringComparison.Ordinal;
+			IEnumerable<MemberInfo> sources = callInfo.SourceType.Members(MemberTypes.Field | MemberTypes.Property, callInfo.Flags, callInfo.Sources.ToArray()).Where(s => s.IsReadable());
+			List<MemberInfo> targets = callInfo.TargetType.Members(MemberTypes.Field | MemberTypes.Property, callInfo.Flags, callInfo.Targets.ToArray()).Where(t => t.IsWritable()).ToList();
+			Sources = new List<MemberInfo>();
+			Targets = new List<MemberInfo>();
+			if (callInfo.Targets.Count == 0) {
+				foreach (MemberInfo source in sources) {
+					foreach (MemberInfo target in targets) {
+						if (source.Name.Equals(target.Name, comparison)
+							&& target.Type().IsAssignableFrom(source.Type())) {
+							Sources.Add(source);
+							Targets.Add(target);
+						}
+					}
+				}
+			}
+			else {
+				foreach (MemberInfo source in sources) {
+					foreach (MemberInfo target in targets) {
+						if (target.Type().IsAssignableFrom(source.Type())) {
+							Sources.Add(source);
+							Targets.Add(target);
+						}
+					}
+				}
+			}
 		}
 
 		protected internal override DynamicMethod CreateDynamicMethod()
 		{
-			return CreateDynamicMethod(sourceType.Name, sourceType, null, new[] { Constants.ObjectType, Constants.ObjectType });
+			return CreateDynamicMethod(TargetType.Name, TargetType, null, new[] { typeof(object), typeof(object) });
 		}
 
 		protected internal override Delegate CreateDelegate()
 		{
-			bool handleInnerStruct = CallInfo.ShouldHandleInnerStruct;
-			if (handleInnerStruct)
-			{
-				Generator.ldarg_1.end();                     // load arg-1 (target)
-				Generator.DeclareLocal(CallInfo.TargetType); // TargetType localStr;
-				Generator
-					.castclass(Constants.StructType) // (ValueTypeHolder)wrappedStruct
-					.callvirt(StructGetMethod) // <stack>.get_Value()
-					.unbox_any(CallInfo.TargetType) // unbox <stack>
-					.stloc(0); // localStr = <stack>
+			bool handleInnerStruct = ShouldHandleInnerStruct;
+			if (handleInnerStruct) {
+				Gen.Emit(OpCodes.Ldarg_1);     // load arg-1 (target)          
+				Gen.DeclareLocal(TargetType);  // TargetType localStr;
+				Gen.Emit(OpCodes.Castclass, typeof(ValueTypeHolder)); // (ValueTypeHolder)wrappedStruct
+				Gen.Emit(OpCodes.Callvirt, StructGetMethod);          // <stack>.get_Value()
+				Gen.Emit(OpCodes.Unbox_Any, TargetType); // unbox <stack>
+				Gen.Emit(OpCodes.Stloc_0); // localStr = <stack>                      
 			}
-
-			foreach (var pair in GetMatchingMembers())
-			{
-				if (handleInnerStruct)
-					Generator.ldloca_s(0).end(); // load &localStr
-				else
-					Generator.ldarg_1.castclass(CallInfo.TargetType).end(); // ((TargetType)target)
-				Generator.ldarg_0.castclass(sourceType);
-				GenerateGetMemberValue(pair.Key);
-				GenerateSetMemberValue(pair.Value);
+			for (int i = 0, count = Sources.Count; i < count; ++i) {
+				if (handleInnerStruct) {
+					Gen.Emit(OpCodes.Ldloca_S, (byte) 0); // load &localStr
+				}
+				else {
+					Gen.Emit(OpCodes.Ldarg_1);
+					Gen.Emit(OpCodes.Castclass, TargetType);  // ((TargetType)target)
+				}
+				Gen.Emit(OpCodes.Ldarg_0);
+				Gen.Emit(OpCodes.Castclass, SourceType);
+				GenerateGetMemberValue(Sources[i]);
+				GenerateSetMemberValue(Targets[i]);
 			}
-
-			if (handleInnerStruct)
-			{
+			if (handleInnerStruct) {
 				StoreLocalToInnerStruct(1, 0);     // ((ValueTypeHolder)this)).Value = tmpStr
 			}
-
-			Generator.ret();
+			Gen.Emit(OpCodes.Ret);
 			return Method.CreateDelegate(typeof(ObjectMapper));
 		}
 
 		private void GenerateGetMemberValue(MemberInfo member)
 		{
-			if (member is FieldInfo)
-			{
-				Generator.ldfld((FieldInfo)member);
+			if (member is FieldInfo field) {
+				Gen.Emit(OpCodes.Ldfld, field);
 			}
-			else
-			{
-				var method = ((PropertyInfo)member).GetGetMethod(true);
-				Generator.callvirt(method, null);
+			else {
+				MethodInfo method = ((PropertyInfo)member).GetGetMethod(true);
+				Gen.EmitCall(OpCodes.Callvirt, method, null);
 			}
 		}
 
 		private void GenerateSetMemberValue(MemberInfo member)
 		{
-			if (member is FieldInfo)
-			{
-				Generator.stfld((FieldInfo)member);
+			if (member is FieldInfo field) {
+				Gen.Emit(OpCodes.Stfld, field);
 			}
-			else
-			{
-				var method = ((PropertyInfo)member).GetSetMethod(true);
-				Generator.callvirt(method, null);
+			else {
+				MethodInfo method = ((PropertyInfo)member).GetSetMethod(true);
+				Gen.EmitCall(OpCodes.Callvirt, method, null);
 			}
-		}
-
-		private IEnumerable<KeyValuePair<MemberInfo, MemberInfo>> GetMatchingMembers()
-		{
-			StringComparison comparison = CallInfo.BindingFlags.IsSet(Flags.IgnoreCase)
-											? StringComparison.OrdinalIgnoreCase
-											: StringComparison.Ordinal;
-			var query = from s in sourceType.Members(sourceMemberTypes, CallInfo.BindingFlags, names)
-						from t in CallInfo.TargetType.Members(targetMemberTypes, CallInfo.BindingFlags, names)
-						where s.Name.Equals(t.Name, comparison) &&
-							  t.Type().GetTypeInfo().IsAssignableFrom(s.Type()) &&
-							  s.IsReadable() && t.IsWritable()
-						select new { Source = s, Target = t };
-			return query.ToDictionary(k => k.Source, v => v.Target);
 		}
 	}
 }

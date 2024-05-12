@@ -1,13 +1,13 @@
-﻿using System;
+﻿using Fasterflect.Extensions;
+using System.Collections.Concurrent;
+using System.Reflection;
 using System.Threading.Tasks;
-using Castle.DynamicProxy;
-using Fasterflect;
 
 namespace SimpleRpc.Transports.Abstractions.Client
 {
-    public abstract class BaseClientTransport : IInterceptor, IClientTransport
+    public abstract class BaseClientTransport : IClientTransport
     {
-        private static readonly ProxyGenerator _proxyGenerator = new ProxyGenerator();
+        private ConcurrentDictionary<MethodInfo, MethodModelCache> _metadata = new ConcurrentDictionary<MethodInfo, MethodModelCache>();
 
         public abstract object HandleSync(RpcRequest rpcRequest);
 
@@ -15,45 +15,44 @@ namespace SimpleRpc.Transports.Abstractions.Client
 
         public abstract Task<T> HandleAsyncWithResult<T>(RpcRequest rpcRequest);
 
-        public object BuildProxy(Type t)
+        public object Invoke(MethodInfo targetMethod, object?[]? args)
         {
-            return _proxyGenerator.CreateInterfaceProxyWithoutTarget(t, this);
-        }
-
-        public void Intercept(IInvocation invocation)
-        {
-            var rpcRequest = new RpcRequest
+            MethodModelCache methodModel = _metadata.GetOrAdd(targetMethod, (key) =>
             {
-                Method = new MethodModel(invocation.Method, invocation.GenericArguments),
-                Parameters = invocation.Arguments
+                return new MethodModelCache(key);
+            });
+
+            var rpcRequest = new RpcRequest
+            { 
+                Method = methodModel.Model,
+                Parameters = args
             };
 
-            if (typeof(Task).IsAssignableFrom(invocation.Method.ReturnType))
+            if (methodModel.IsAsync)
             {
                 //Task<T>
-                if (invocation.Method.ReturnType.IsGenericType)
+                if (methodModel.ReturnType != typeof(void))
                 {
-                    invocation.ReturnValue = this.CallMethod(
-                        invocation.Method.ReturnType.GetGenericArguments(), 
-                        nameof(HandleAsyncWithResult),
-                        rpcRequest);
+                    return this.CallMethod(
+                      new[] { methodModel.ReturnType },
+                      nameof(HandleAsyncWithResult),
+                      rpcRequest);
                 }
                 else
                 {
                     //Task
-                    invocation.ReturnValue = HandleAsync(rpcRequest);
+                    return HandleAsync(rpcRequest);
                 }
-            }
-            else if (invocation.Method.ReturnType != typeof(void))
-            {          
-                //T
-                invocation.ReturnValue = HandleSync(rpcRequest);
             }
             else
             {
-                //void
-                HandleSync(rpcRequest);
+                return HandleSync(rpcRequest);
             }
         }
+    }
+
+    public abstract class BaseClientTransport<TService> : BaseClientTransport
+    {
+     
     }
 }

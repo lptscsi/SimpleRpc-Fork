@@ -6,12 +6,12 @@ namespace SimpleRpc.Transports.Abstractions.Client
 {
     internal interface IClientConfigurationManager
     {
-        IClientTransport Get(string clientName);
+        BaseClientTransport Get(string clientName);
     }
 
     internal class ClientConfigurationManager : IClientConfigurationManager
     {
-        private readonly ConcurrentDictionary<string, IClientTransport> _cache = new ConcurrentDictionary<string, IClientTransport>(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, BaseClientTransport> _cache = new ConcurrentDictionary<string, BaseClientTransport>(StringComparer.OrdinalIgnoreCase);
 
         public ClientConfigurationManager(IEnumerable<ClientConfiguration> clientConfigurations)
         {
@@ -19,12 +19,12 @@ namespace SimpleRpc.Transports.Abstractions.Client
             {
                 if (!_cache.TryAdd(clientConfiguration.Name, clientConfiguration.Transport))
                 {
-                    throw new Exception($"Cant added client transport named {clientConfiguration.Name}, maybe he's already registered");
+                    throw new Exception($"Cant added client transport named {clientConfiguration.Name}, maybe it's already registered");
                 }
             }
         }
 
-        public IClientTransport Get(string clientName)
+        public BaseClientTransport Get(string clientName)
         {
             if (!_cache.TryGetValue(clientName, out var clientTransport))
             {
