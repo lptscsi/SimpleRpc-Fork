@@ -19,7 +19,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endregion
 
-using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.SymbolStore;
 using System.Reflection;
@@ -28,11 +27,11 @@ using System.Runtime.InteropServices;
 
 namespace Fasterflect.Emitter
 {
-	/// <summary>
-	/// A wrapper around the <see cref="ILGenerator"/> class.
-	/// </summary>
-	/// <seealso cref="System.Reflection.Emit.ILGenerator"/>
-	public class EmitHelper
+    /// <summary>
+    /// A wrapper around the <see cref="ILGenerator"/> class.
+    /// </summary>
+    /// <seealso cref="System.Reflection.Emit.ILGenerator"/>
+    public class EmitHelper
 	{
 		/// <summary>
 		/// Initializes a new instance of the <see cref="EmitHelper"/> class
